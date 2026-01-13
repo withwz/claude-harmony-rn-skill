@@ -1,0 +1,1 @@
+clone 到 ~/.claude/skills 里边
