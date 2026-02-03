@@ -10,10 +10,21 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, Task
 
 | 项目 | 版本 |
 |------|------|
-| RNOH 版本 | 0.72.102 |
+| RNOH 当前版本 | 0.72.58 (NPM 包) |
+| RNOH 发布版本 | v5.0.0.813 (2024-12-26) |
 | React Native | 0.72.5 (Fabric 新架构) |
-| HarmonyOS SDK | 5.0.0.61+ (SP1) |
+| HarmonyOS SDK | 5.0.0.61+ (NEXT) |
 | 架构 | Fabric + TurboModule |
+| 推荐分支 | 0.72.5-ohos-5.0-release |
+| 代码库路径 | `/Users/wuzhao/Desktop/ty/rnoh/react-native-openharmony` |
+
+### 版本说明
+- **NPM 版本**: `@rnoh/react-native-harmony@0.72.58`
+- **发布版本**: 采用四段式版本号，如 `v5.0.0.813`
+- **分支说明**:
+  - `0.72.5-ohos-5.0-release`: 稳定发布分支，推荐用于生产环境
+  - `master`: 主分支，不保证质量
+  - `dev`/`partner-dev`: 开发分支，不保证质量
 
 ---
 
@@ -29,12 +40,30 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, Task
 - 调查 RNOH 中的 zIndex、手势或动画问题
 
 ### 典型问题示例
+
+#### 架构与源码相关
 - "为什么我的组件在鸿蒙上布局错乱？"
-- "如何创建一个自定义的 TurboModule？"
-- "从 RN 0.59 升级需要改哪些代码？"
 - "zIndex 在鸿蒙上不生效怎么办？"
-- "ContentSlot 如何接入使用？"
+- "如何理解 RNOH 的三阶段渲染流程？"
 - "ArkUINode 和 ArkTS 组件有什么区别？"
+
+#### TurboModule 相关
+- "如何创建一个自定义的 TurboModule？"
+- "TurboModule 在 ArkTS 和 C++ 中有什么区别？"
+- "StatusBarTurboModule 是如何实现状态栏控制的？"
+
+#### 迁移相关
+- "从 RN 0.59 升级需要改哪些代码？"
+- "RN 0.51/0.59 的老代码在鸿蒙上不兼容怎么办？"
+
+#### 鸿蒙特有 API
+- "ContentSlot 如何接入使用？"
+- "@ohos.window API 如何正确使用？"
+- "如何使用鸿蒙的 avoidArea 获取状态栏高度？"
+
+#### 测试与调试
+- "如何运行 tester 目录下的测试？"
+- "测试计划中的 iteration 是什么意思？"
 
 ---
 
@@ -111,6 +140,231 @@ enum TaskThread {
                       // - 减轻主线程负担
 };
 ```
+
+### 项目目录结构
+
+**根目录**: `/Users/wuzhao/Desktop/ty/rnoh/react-native-openharmony`
+
+```
+react-native-openharmony/
+├── react-native-harmony/           # 核心库 (@rnoh/react-native-harmony)
+│   ├── Libraries/                  # React Native 组件库
+│   │   ├── Components/            # 组件实现
+│   │   ├── *.harmony.js           # 鸿蒙专用补丁 (~25个文件)
+│   │   └── *.harmony.ts           # 鸿蒙专用 TypeScript 补丁
+│   ├── types/                     # TypeScript 类型定义
+│   └── package.json               # 版本: 0.72.58
+│
+├── react-native-harmony-cli/      # CLI 工具
+│   └── package.json               # 版本: 0.0.28
+│
+├── react-native-harmony-sample-package/  # 示例包
+│   ├── src/main/ets/              # ArkTS 源码
+│   │   ├── SampleTurboModule.ets  # 示例 TurboModule (ArkTS)
+│   │   ├── SampleWorkerTurboModule.ets  # Worker TurboModule
+│   │   └── SamplePackage.ets      # Package 定义
+│   └── src/main/cpp/              # C++ 源码
+│       ├── SampleTurboModuleSpec.h
+│       └── SamplePackage.cpp
+│
+├── tester/                         # 测试应用
+│   ├── harmony/                   # 鸿蒙测试项目
+│   │   └── react_native_openharmony/src/main/ets/
+│   │       ├── RNOHCorePackage/   # 核心 Package 实现
+│   │       │   ├── turboModules/  # TurboModule 集合 (~34个)
+│   │       │   │   ├── StatusBarTurboModule.ts
+│   │       │   │   ├── NetworkingTurboModule.ts
+│   │       │   │   ├── ToastAndroidTurboModule.ts
+│   │       │   │   └── ...
+│   │       │   ├── components/    # 组件实现
+│   │       │   └── componentManagers/
+│   │       ├── RNSurface.ets      # React Native 表面
+│   │       └── RNOH/              # RNOH 核心框架
+│   ├── plan/                      # 测试计划文档
+│   │   ├── iteration_*.md         # 迭代测试记录
+│   │   └── SUMMARY_*.md           # 测试总结
+│   ├── tests/                     # 测试用例
+│   └── package.json
+│
+├── docs/                          # 文档
+│   ├── zh-cn/                     # 中文文档
+│   └── en/                        # 英文文档
+│
+└── README_zh.md                   # 中文 README
+```
+
+### 鸿蒙专用组件补丁
+
+RNOH 通过 `.harmony.js` 和 `.harmony.ts` 文件提供鸿蒙专用实现：
+
+| 组件 | 补丁文件 | 主要修改内容 |
+|------|----------|-------------|
+| View | View.harmony.js | pointerEvents 展平控制 |
+| Image | Image.harmony.js | 鸿蒙图片加载适配 |
+| TextInput | TextInput.harmony.js | 鸿蒙输入法适配 |
+| ScrollView | ScrollView.harmony.js | flashScrollIndicators、键盘模式 |
+| StatusBar | StatusBar.harmony.js | 状态栏 API 适配 |
+| UIManager | UIManager.harmony.js | 鸿蒙特有 UI 管理器 |
+
+#### 补丁文件示例
+
+**View.harmony.js - pointerEvents 控制**
+```javascript
+// RNOH patch: 禁用特定 pointerEvents 的 View 展平
+// 原因: HarmonyOS 的触摸处理需要完整的组件层级
+collapsable={["box-only", "none"].includes(newPointerEvents) ? false : collapsable}
+```
+
+**ScrollView.harmony.js - JS 端实现 flashScrollIndicators**
+```javascript
+// RNOH patch - resolving flashScrollIndicators command on the JS side
+// as it is currently not feasible on the native side
+flashScrollIndicators: () => void = () => {
+  this.state.showScrollIndicator = true;
+  setTimeout(() => {
+    this.state.showScrollIndicator = false;
+    this.forceUpdate();
+  }, 500);
+  this.forceUpdate();
+};
+```
+
+**ScrollView.harmony.js - 平台检测**
+```javascript
+// RNOH: patch - add support for OpenHarmony
+if ((Platform.OS === "android" || Platform.OS === "harmony") &&
+    this.props.keyboardDismissMode === "on-drag") {
+  dismissKeyboard();
+}
+```
+
+**ScrollView.harmony.js - RefreshControl 样式拆分**
+```javascript
+// RNOH: patch - use Android implementation
+const { outer, inner } = splitLayoutProps(flattenStyle(props.style));
+return React.cloneElement(
+  refreshControl,
+  { style: StyleSheet.compose(baseStyle, outer) },
+  <NativeDirectionalScrollView {...props} style={StyleSheet.compose(baseStyle, inner)}>
+    {contentContainer}
+  </NativeDirectionalScrollView>
+);
+```
+
+### TurboModule 实现方式
+
+RNOH 支持两种 TurboModule 实现方式：
+
+1. **ArkTS TurboModule** (推荐，性能更好)
+   - 位置: `tester/harmony/.../turboModules/*.ts`
+   - 继承: `UITurboModule`
+   - 示例: `StatusBarTurboModule.ts`
+
+2. **C++ TurboModule**
+   - 位置: `.../cpp/*.cpp`, `.../*.h`
+   - 使用 Codegen 生成规范
+   - 示例: `SampleTurboModuleSpec.h`
+
+### 鸿蒙特有 API 说明
+
+RNOH 中常用的 HarmonyOS 系统 API：
+
+#### @ohos.window - 窗口管理
+```typescript
+// StatusBarTurboModule.ts 中的使用示例
+import window from '@ohos.window';
+
+// 获取窗口实例
+const windowInstance = await window.getLastWindow(this.ctx.uiAbilityContext);
+
+// 获取状态栏高度
+const statusBarHeight = windowInstance.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM).topRect.height;
+
+// 设置系统栏属性
+windowInstance.setWindowSystemBarProperties({
+  statusBarColor: '#FF0000',
+  statusBarContentColor: '#FFFFFF'
+});
+
+// 监听避让区域变化
+windowInstance.on('avoidAreaChange', (data) => {
+  if(data.type === window.AvoidAreaType.TYPE_SYSTEM){
+    // 更新状态栏高度
+  }
+});
+
+// 设置状态栏显示/隐藏
+await windowInstance.setSpecificSystemBarEnabled('status', false);
+```
+
+#### 颜色插值动画（HarmonyOS API 12 之前解决方案）
+
+由于 HarmonyOS API 12 之前不支持 `enableStatusBarAnimation`，RNOH 实现了手动颜色插值：
+
+```typescript
+// 颜色插值函数 - 生成渐变色数组
+function interpolateColor(color1: string, color2: string, steps: number): string[] {
+  let colorStartRGB = hexToRGB(color1);
+  let colorStopRGB = hexToRGB(color2);
+
+  let rStep = (colorStopRGB[0] - colorStartRGB[0]) / (steps - 1);
+  let gStep = (colorStopRGB[1] - colorStartRGB[1]) / (steps - 1);
+  let bStep = (colorStopRGB[2] - colorStartRGB[2]) / (steps - 1);
+  let aStep = (colorStopRGB[3] - colorStartRGB[3]) / (steps - 1);
+
+  let colorArray: string[] = [];
+  for (let i = 0; i < steps; i++) {
+    let r = Math.min(255, Math.max(0, colorStartRGB[0] + (rStep * i)));
+    let g = Math.min(255, Math.max(0, colorStartRGB[1] + (gStep * i)));
+    let b = Math.min(255, Math.max(0, colorStartRGB[2] + (bStep * i)));
+    let a = Math.min(255, Math.max(0, colorStartRGB[3] + (aStep * i)));
+    colorArray.push(rgbToHex(Math.round(r), Math.round(g), Math.round(b), Math.round(a)));
+  }
+  return colorArray;
+}
+
+// 应用颜色动画 - 20帧渐变，每帧16ms (~60fps)
+async setColor(color: number, animated: boolean) {
+  const colorString = convertColorValueToHex(color);
+
+  if (!animated) {
+    windowInstance.setWindowSystemBarProperties({ statusBarColor: colorString });
+  } else {
+    // 手动创建颜色渐变动画
+    let colors = interpolateColor(this._currentColor, colorString, 20);
+    let i = 0;
+    let intervalId = setInterval(() => {
+      windowInstance.setWindowSystemBarProperties({ statusBarColor: colors[i] });
+      i++;
+      if (i >= colors.length) {
+        clearInterval(intervalId);
+      }
+    }, 16); // ~60fps
+  }
+  this._currentColor = colorString;
+}
+```
+
+**关键技术点**：
+- 20 帧渐变，每帧 16ms，约 60fps
+- RGB/A 分量独立插值
+- 保存当前颜色状态，支持连续动画
+
+#### px2vp - 像素转换
+```typescript
+declare function px2vp(px: number): number;
+// 将物理像素转换为虚拟像素
+const scaledHeight = px2vp(statusBarHeight);
+```
+
+#### 其他常用 @ohos API
+| API 模块 | 用途 | 示例场景 |
+|----------|------|----------|
+| @ohos.file.fs | 文件系统操作 | 图片缓存、本地存储 |
+| @ohos.net.http | 网络请求 | NetworkingTurboModule |
+| @ohos.multimedia.image | 图片处理 | Image 组件解码 |
+| @ohos.sensor | 传感器访问 | 加速度计、陀螺仪 |
+| @ohos.geolocation | 地理位置 | Geolocation 模块 |
 
 ### 核心概念：JSI (JavaScript Interface)
 
@@ -464,6 +718,274 @@ struct ContentAdaptiveSurface {
       }
     }
   }
+}
+```
+
+---
+
+## ComponentInstance 核心架构
+
+### ComponentInstance 基类核心职责
+
+**位置**: `tester/harmony/react_native_openharmony/src/main/cpp/RNOH/ComponentInstance.h`
+
+ComponentInstance 是所有组件实例的**抽象基类**，核心职责包括：
+
+#### 核心职责 1: 组件生命周期管理
+```cpp
+virtual void onCreate() {}  // 构造后回调
+virtual ~ComponentInstance() = default;
+```
+
+#### 核心职责 2: 父子关系管理
+```cpp
+void insertChild(ComponentInstance::Shared childComponentInstance, std::size_t index);
+void removeChild(ComponentInstance::Shared childComponentInstance);
+virtual void onChildInserted(ComponentInstance::Shared const& childComponentInstance, std::size_t index);
+virtual void onChildRemoved(ComponentInstance::Shared const& childComponentInstance);
+```
+
+#### 核心职责 3: Props/State/Layout 更新接口
+```cpp
+// 由 MountingManagerCAPI 调用的更新方法
+virtual void setProps(facebook::react::Props::Shared props);
+virtual void setState(facebook::react::State::Shared state);
+virtual void setLayout(facebook::react::LayoutMetrics layoutMetrics);
+virtual void setEventEmitter(facebook::react::SharedEventEmitter eventEmitter);
+```
+
+#### 核心职责 4: TouchTarget 接口实现
+```cpp
+class ComponentInstance : public TouchTarget,
+                         public std::enable_shared_from_this<ComponentInstance> {
+  // TouchTarget 实现
+  Tag getTouchTargetTag() const override;
+  facebook::react::SharedTouchEventEmitter getTouchEventEmitter() const override;
+  virtual std::vector<TouchTarget::Shared> getTouchTargetChildren() override;
+};
+```
+
+#### 核心职责 5: ArkUINode 暴露
+```cpp
+// 必须由子类实现，返回组件的本地根节点
+virtual ArkUINode& getLocalRootArkUINode() = 0;
+```
+
+### Props 处理流程
+
+**从 JS Props 到 C++ 属性的完整流程**：
+
+```
+JS Props (folly::dynamic)
+    ↓
+React Native ShadowNode
+    ↓ PropsParserContext
+ConcreteProps (类型安全的 C++ 对象)
+    ↓ MountingManagerCAPI::updateComponentWithShadowView
+ComponentInstance::setProps()
+    ↓ CppComponentInstance::onPropsChanged()
+ArkUINode 属性设置方法
+    ↓ NativeNodeApi
+HarmonyOS Native Node C-API
+```
+
+**CppComponentInstance Props 处理示例**：
+
+```cpp
+template <typename ShadowNodeT>
+class CppComponentInstance : public ComponentInstance {
+  using ConcreteProps = typename ShadowNodeT::ConcreteProps;
+  SharedConcreteProps m_props;
+
+public:
+  void setProps(facebook::react::Props::Shared props) final {
+    auto newProps = std::dynamic_pointer_cast<const ConcreteProps>(props);
+    this->onPropsChanged(newProps);  // 虚方法，子类可重写
+    m_props = newProps;
+  }
+
+protected:
+  virtual void onPropsChanged(SharedConcreteProps const& concreteProps);
+};
+```
+
+**ViewProps 处理详细实现**：
+
+```cpp
+virtual void onPropsChanged(SharedConcreteProps const& concreteProps) {
+  auto props = std::static_pointer_cast<const facebook::react::ViewProps>(concreteProps);
+  auto old = std::static_pointer_cast<const facebook::react::ViewProps>(m_props);
+
+  // 1. 背景色处理（增量更新）
+  if (old && *(props->backgroundColor) != *(old->backgroundColor)) {
+    this->getLocalRootArkUINode().setBackgroundColor(props->backgroundColor);
+  }
+
+  // 2. 边框处理
+  facebook::react::BorderMetrics borderMetrics =
+      props->resolveBorderMetrics(this->m_layoutMetrics);
+
+  if (old && borderMetrics.borderWidths != m_oldBorderMetrics.borderWidths) {
+    this->getLocalRootArkUINode().setBorderWidth(borderMetrics.borderWidths);
+  }
+
+  // 3. 变换处理（考虑 Animated 管理）
+  auto isTransformManagedByAnimated = getIgnoredPropKeys().count("transform") > 0;
+  if (!isTransformManagedByAnimated) {
+    if (!old) {
+      if (props->transform != defaultTransform) {
+        this->getLocalRootArkUINode().setTransform(
+            props->transform, m_layoutMetrics.pointScaleFactor);
+        markBoundingBoxAsDirty();
+      }
+    }
+  }
+
+  // 4. 透明度处理
+  this->setOpacity(props);
+
+  // 5. 无障碍属性处理
+  this->getLocalRootArkUINode().setAccessibilityState(props->accessibilityState);
+
+  // 6. 指针事件处理
+  if (!old || props->pointerEvents != old->pointerEvents) {
+    this->getLocalRootArkUINode().setHitTestMode(props->pointerEvents);
+    this->getLocalRootArkUINode().setEnabled(
+        props->pointerEvents != facebook::react::PointerEventsMode::None);
+  }
+
+  // 保存旧值用于增量更新
+  m_oldBorderMetrics = borderMetrics;
+}
+```
+
+### LayoutMetrics 传递到 ArkUI
+
+**LayoutMetrics 结构**：
+
+```cpp
+namespace facebook::react {
+struct LayoutMetrics {
+  Rect frame;                    // {Point origin, Size size}
+  Float pointScaleFactor;        // 设备像素比
+  LayoutDirection layoutDirection;  // LTR/RTL
+};
+}
+```
+
+**设置流程**：
+
+```cpp
+void CppComponentInstance::onLayoutChanged(LayoutMetrics const& layoutMetrics) {
+  // 调用 ArkUINode 的 setLayoutRect
+  this->getLocalRootArkUINode().setLayoutRect(
+      layoutMetrics.frame.origin,
+      layoutMetrics.frame.size,
+      layoutMetrics.pointScaleFactor);
+
+  // 处理布局方向变化
+  if (layoutMetrics.layoutDirection != m_layoutMetrics.layoutDirection) {
+    ArkUI_Direction direction = convertLayoutDirection(layoutMetrics.layoutDirection);
+    this->getLocalRootArkUINode().setDirection(direction);
+  }
+
+  // 标记边界框需要重新计算
+  markBoundingBoxAsDirty();
+}
+```
+
+**setLayoutRect 详细实现**：
+
+```cpp
+ArkUINode& ArkUINode::setLayoutRect(
+    facebook::react::Point const& position,
+    facebook::react::Size const& size,
+    facebook::react::Float pointScaleFactor) {
+
+  // 1. 单位转换：dp -> px
+  ArkUI_NumberValue value[] = {
+    {.i32 = static_cast<int32_t>(position.x * pointScaleFactor + 0.5)},
+    {.i32 = static_cast<int32_t>(position.y * pointScaleFactor + 0.5)},
+    {.i32 = static_cast<int32_t>(size.width * pointScaleFactor + 0.5)},
+    {.i32 = static_cast<int32_t>(size.height * pointScaleFactor + 0.5)}
+  };
+
+  // 2. 保存尺寸供后续查询
+  saveSize(value[2].i32, value[3].i32);
+
+  // 3. 调用 HarmonyOS C-API
+  ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};
+  maybeThrow(NativeNodeApi::getInstance()->setAttribute(
+      m_nodeHandle, NODE_LAYOUT_RECT, &item));
+
+  return *this;
+}
+```
+
+### 关键设计模式
+
+#### RAII (Resource Acquisition Is Initialization)
+
+```cpp
+class ArkUINode {
+  ArkUI_NodeHandle m_nodeHandle;  // 资源在构造时获取
+
+public:
+  ArkUINode(ArkUI_NodeHandle nodeHandle) : m_nodeHandle(nodeHandle) {
+    RNOH_ASSERT(nodeHandle != nullptr);
+    NODE_BY_HANDLE.emplace(m_nodeHandle, this);  // 注册到全局映射
+  }
+
+  virtual ~ArkUINode() noexcept {
+    NODE_BY_HANDLE.erase(m_nodeHandle);
+    NativeNodeApi::getInstance()->disposeNode(m_nodeHandle);  // 析构时释放
+  }
+};
+```
+
+#### 委托模式
+
+```cpp
+// StackNode 委托给 StackNodeDelegate
+class StackNodeDelegate {
+  virtual void onClick() {}
+  virtual void onHoverIn() {}
+  virtual void onHoverOut() {}
+};
+
+class StackNode : public ArkUINode {
+  StackNodeDelegate* m_stackNodeDelegate;
+
+  void onNodeEvent(ArkUI_NodeEventType eventType, EventArgs& eventArgs) override {
+    if (eventType == NODE_ON_CLICK) {
+      if (m_stackNodeDelegate) {
+        m_stackNodeDelegate->onClick();  // 委托处理
+      }
+    }
+  }
+};
+
+// ViewComponentInstance 实现 StackNodeDelegate
+class ViewComponentInstance : public StackNodeDelegate {
+  void onClick() override {
+    if (m_eventEmitter) {
+      m_eventEmitter->dispatchEvent("click", ...);
+    }
+  }
+};
+```
+
+#### 增量更新优化
+
+```cpp
+// 只在属性真正变化时才调用 C-API
+if (old && *(props->backgroundColor) != *(old->backgroundColor)) {
+  // 只有背景色变化时才调用 C-API
+  this->getLocalRootArkUINode().setBackgroundColor(props->backgroundColor);
+} else if (!old && props->backgroundColor != ARKUI_DEFAULT_BACKGROUND_COLOR) {
+  this->getLocalRootArkUINode().setBackgroundColor(props->backgroundColor);
+} else {
+  // Do nothing here.
 }
 ```
 
@@ -1005,59 +1527,186 @@ jsi::Value ArkTSTurboModule::callAsync(
 
 ### TurboModule 调用链
 
-**同步调用**：
+#### 完整调用流程图
+
 ```
-[JS] NativeModule.method()
-    ↓
-[JSI] TurboModuleBinding::getConstant()
-    ↓
-[C++] ArkTSTurboModule::call(rt, "method", args, count)
-    ↓
-[C++] convertJSIValuesToIntermediaryValues()
-    ↓
-[C++] callSync(methodName, args)
-    ↓
-[C++] taskExecutor->runSyncTask(TASK_THREAD, [&] {
-    [C++] ArkJS::convertIntermediaryValuesToNapiValues()
-    ↓
-    [C++] arkJS.getObject(arkTSTurboModuleInstanceRef).call(methodName, napiArgs)
-    ↓
-    [NAPI] → [ArkTS] TurboModule.method()
-    ↓
-    [ArkTS] return result
-})
-    ↓
-[C++] jsi::valueFromDynamic(rt, result)
-    ↓
-[JS] 返回结果
+┌─────────────────────────────────────────────────────────────────┐
+│                        JavaScript Layer                          │
+│  NativeSampleTurboModule.pushStringToHarmony("hello", eventId)   │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                       JSI Runtime                                │
+│  __turboModuleProxy("SampleTurboModule")                        │
+│    → TurboModule.get("pushStringToHarmony")                     │
+│    → HostFunction invoker                                        │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                    TurboModule C++                               │
+│  ArkTSTurboModule::call(runtime, "pushStringToHarmony", args)   │
+│    → convertJSIValuesToIntermediaryValues()                      │
+│    → callSync("pushStringToHarmony", intermediaryArgs)           │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                   TaskExecutor                                   │
+│  runSyncTask(TaskThread::MAIN, lambda)                          │
+│    → NapiTaskRunner::runSyncTask()                              │
+│    → 在主线程上执行 lambda                                        │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                      ArkJS Layer                                 │
+│  ArkJS(env).convertIntermediaryValuesToNapiValues(args)         │
+│    → folly::dynamic → napi_value 转换                            │
+│    → 处理 IntermediaryCallback                                    │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                   N-API Layer                                    │
+│  napi_call_function(                                            │
+│    turboModuleObject,                                           │
+│    "pushStringToHarmony",                                        │
+│    napiArgs                                                     │
+│  )                                                              │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                  ArkTS TurboModule                               │
+│  SampleTurboModule.pushStringToHarmony(arg, id)                 │
+│    → emitter.emit({eventId: id}, {data})                        │
+│    → HarmonyOS Event Emitter                                    │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ↓
+┌─────────────────────────────────────────────────────────────────┐
+│              HarmonyOS Native API                                │
+│  @ohos.events.emitter.emit()                                    │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-**异步 Promise 调用**：
+#### 同步调用详解
+
+```cpp
+// 1. JSI 入口点 - call 方法
+jsi::Value ArkTSTurboModule::call(
+    jsi::Runtime& runtime,
+    const std::string& methodName,
+    const jsi::Value* jsiArgs,
+    size_t argsCount) {
+  // 将 JSI Value 转换为 IntermediaryArg
+  auto args = convertJSIValuesToIntermediaryValues(
+      runtime, m_ctx.jsInvoker, jsiArgs, argsCount);
+  // 调用同步方法
+  return jsi::valueFromDynamic(runtime, callSync(methodName, std::move(args)));
+}
+
+// 2. 同步调用实现 - callSync
+folly::dynamic ArkTSTurboModule::callSync(
+    const std::string& methodName,
+    std::vector<IntermediaryArg> args) {
+  folly::dynamic result;
+  m_ctx.taskExecutor->runSyncTask(
+      m_ctx.turboModuleThread, [ctx = m_ctx, &methodName, &args, &result]() {
+        ArkJS arkJS(ctx.env);
+        // 转换 IntermediaryArg 到 napi_value
+        auto napiArgs = arkJS.convertIntermediaryValuesToNapiValues(std::move(args));
+        // 获取 ArkTS TurboModule 对象
+        auto napiTurboModuleObject = arkJS.getObject(ctx.arkTSTurboModuleInstanceRef);
+        // 调用 ArkTS 方法
+        auto napiResult = napiTurboModuleObject.call(methodName, napiArgs);
+        // 转换结果为 folly::dynamic
+        result = arkJS.getDynamic(napiResult);
+      });
+  return result;
+}
 ```
-[JS] NativeModule.asyncMethod()
-    ↓
-[JSI] TurboModuleBinding::invoke()
-    ↓
-[C++] ArkTSTurboModule::callAsync(rt, "asyncMethod", args, count)
-    ↓
-[C++] createPromiseAsJSIValue(rt, [&](runtime, jsiPromise) {
-    [C++] taskExecutor->runTask(TASK_THREAD, [&] {
-        [C++] napiResult = arkTSTurboModuleObject.call("asyncMethod", napiArgs)
-        ↓
-        [NAPI] → [ArkTS] TurboModule.asyncMethod()
-        ↓
-        [ArkTS] return Promise
-        ↓
-        [C++] Promise.then([&](args) {
-            [C++] jsInvoker->invokeAsync([&] {
-                [C++] jsiPromise->resolve(prepareResult(args))
-            })
-        })
-    })
-})
-    ↓
-[JS] 返回 Promise 对象
+
+#### 异步调用详解
+
+```cpp
+jsi::Value ArkTSTurboModule::callAsync(
+    jsi::Runtime& runtime,
+    const std::string& methodName,
+    const jsi::Value* jsiArgs,
+    size_t argsCount) {
+  auto args = convertJSIValuesToIntermediaryValues(
+      runtime, m_ctx.jsInvoker, jsiArgs, argsCount);
+
+  // 创建 Promise
+  return react::createPromiseAsJSIValue(
+      runtime,
+      [&, args = std::move(args)](
+          jsi::Runtime& runtime2,
+          std::shared_ptr<react::Promise> jsiPromise) mutable {
+        react::LongLivedObjectCollection::get(runtime2).add(jsiPromise);
+
+        // 在 TurboModuleThread 上异步执行
+        m_ctx.taskExecutor->runTask(
+            m_ctx.turboModuleThread,
+            [name = this->name_,
+             methodName,
+             args = std::move(args),
+             env = m_ctx.env,
+             arkTSTurboModuleInstanceRef = m_ctx.arkTSTurboModuleInstanceRef,
+             jsInvoker = m_ctx.jsInvoker,
+             &runtime2,
+             weakJsiPromise = std::weak_ptr<react::Promise>(jsiPromise)]() mutable {
+              ArkJS arkJS(env);
+              try {
+                // 调用 ArkTS 方法返回 Promise
+                auto n_promisedResult =
+                    arkJS.getObject(arkTSTurboModuleInstanceRef)
+                        .call(methodName, arkJS.convertIntermediaryValuesToNapiValues(std::move(args)));
+
+                // 处理 Promise 结果
+                Promise(env, n_promisedResult)
+                    .then([&runtime2, weakJsiPromise, env, jsInvoker](auto args) {
+                      jsInvoker->invokeAsync([&runtime2, weakJsiPromise, args = std::move(args)]() {
+                        auto jsiPromise = weakJsiPromise.lock();
+                        if (!jsiPromise) return;
+                        jsiPromise->resolve(preparePromiseResolverResult(runtime2, args));
+                        jsiPromise->allowRelease();
+                      });
+                    })
+                    .catch_([&runtime2, weakJsiPromise, env, jsInvoker](auto args) {
+                      jsInvoker->invokeAsync([&runtime2, weakJsiPromise, args = std::move(args)]() {
+                        auto jsiPromise = weakJsiPromise.lock();
+                        if (!jsiPromise) return;
+                        jsiPromise->reject(preparePromiseRejectionResult(args));
+                        jsiPromise->allowRelease();
+                      });
+                    });
+              } catch (const std::exception& e) {
+                jsInvoker->invokeAsync([message = std::string(e.what()), weakJsiPromise] {
+                  auto jsiPromise = weakJsiPromise.lock();
+                  if (!jsiPromise) return;
+                  jsiPromise->reject(message);
+                  jsiPromise->allowRelease();
+                });
+              }
+            });
+      });
+}
 ```
+
+#### 调用方式对比
+
+| 特性 | 同步调用 | 异步调用 (Promise) | Fire-and-Forget |
+|------|------------------------|-------------------|-----------------|
+| **方法** | `call()` / `callSync()` | `callAsync()` | `scheduleCall()` |
+| **返回类型** | 直接返回结果 | 返回 Promise | undefined |
+| **线程模型** | 阻塞等待结果 | 非阻塞，Promise 回调 | 非阻塞，无回调 |
+| **TaskExecutor** | `runSyncTask()` | `runTask()` | `runTask()` |
+| **用途** | 简单 getter | 耗时操作、网络请求 | 不需要结果的调用 |
+| **性能** | 较慢（阻塞） | 快（非阻塞） | 最快（无回调处理） |
 
 ---
 
@@ -1617,6 +2266,118 @@ const tap = Gesture.Tap()
 - 文件操作
 - 复杂计算
 
+### LazyForEach 渲染优化
+
+**位置**: `RNOHCorePackage/components/RNListComponent.ets`
+
+**核心实现**：
+```typescript
+LazyForEach(this.ctx.createComponentDataSource({ tag: this.tag }),
+  (descriptorWrapper: DescriptorWrapper) => {
+    (this.ctx as RNComponentContext).wrappedRNComponentBuilder.builder(
+      (this.ctx as RNComponentContext),
+      descriptorWrapper.tag
+    )
+  },
+  (descriptorWrapper: DescriptorWrapper) =>
+    descriptorWrapper.tag.toString() + "@" + descriptorWrapper.renderKey
+)
+```
+
+**优势**：
+- **仅渲染可见区域组件**：大幅减少内存占用
+- **基于渲染键差量更新**：避免不必要的重新渲染
+- **自动回收不可见组件**：内存管理自动化
+
+**关键点**：
+- `createComponentDataSource` 创建懒加载数据源
+- `tag + "@" + renderKey` 作为唯一标识，确保正确复用
+- 适用于长列表场景，如 FlatList、SectionList
+
+### 事件计数机制
+
+**位置**: `RNOHCorePackage/components/RNTextInput/`
+
+**问题**：JS 端和 Native 端状态可能不一致
+
+**解决方案**：
+```typescript
+// 事件计数检查
+canUpdateWithEventCount(eventCount: number | undefined): boolean {
+  return eventCount !== undefined && eventCount >= this.nativeEventCount;
+}
+
+// 设置值时检查事件计数
+maybeSetValue(newValue: string, mostRecentEventCount?: number): void {
+  if (this.canUpdateWithEventCount(mostRecentEventCount)) {
+    this.value = newValue;
+  }
+}
+
+// 粘贴处理
+onPaste(): void {
+  this.textWasPastedOrCut = true;
+}
+
+// 按键事件分发
+dispatchKeyEvent(currentSelection: Selection): void {
+  if (this.textWasPastedOrCut) {
+    this.textWasPastedOrCut = false;
+  } else if (this.valueChanged) {
+    const noPreviousSelection = this.selection.start === this.selection.end;
+    const cursorDidNotMove = currentSelection.start === this.selection.start;
+    const cursorMovedBackwardsOrAtBeginning =
+      (currentSelection.start < this.selection.start) || currentSelection.start <= 0;
+
+    if (!cursorMovedBackwardsOrAtBeginning && (noPreviousSelection || !cursorDidNotMove)) {
+      const key = this.value.charAt(currentSelection.start - 1);
+      this.ctx.rnInstance.emitComponentEvent(this.descriptor.tag, "onKeyPress",
+        this.createTextInputKeyEvent(key));
+    }
+  }
+}
+```
+
+**关键点**：
+- 使用 `eventCount` 避免竞态条件
+- 区分粘贴、删除和普通输入
+- 只在真正需要时触发 onKeyPress 事件
+
+### 属性更新优化
+
+**位置**: `RNOH/AttributeModifier.ts`
+
+**避免无效更新**：
+```typescript
+protected maybeAssignAttribute<TPropertyValue>(
+  extractPropertyValue: (propertyHolder: TPropertyHolder) => TPropertyValue,
+  assign: (propertyValue: TPropertyValue) => void,
+  defaultValue: TPropertyValue,
+): void {
+  const newPropertyValue = extractPropertyValue(this.propertyHolder)
+  let isNewValueEqualToDefault = newPropertyValue === defaultValue || Number.isNaN(newPropertyValue)
+
+  // 数组比较
+  if (Array.isArray(defaultValue) && Array.isArray(newPropertyValue)) {
+    isNewValueEqualToDefault = areFirstLevelElementsEqual(newPropertyValue, defaultValue)
+  }
+  // 对象比较
+  else if (typeof defaultValue === "object" && typeof newPropertyValue === "object") {
+    isNewValueEqualToDefault = areFirstLevelPropsEqual(newPropertyValue, defaultValue)
+  }
+
+  // 只在值真正改变时调用 ArkUI API
+  if (!isNewValueEqualToDefault) {
+    assign(newPropertyValue)
+  }
+}
+```
+
+**关键点**：
+- 数组和对象的浅比较
+- 只在值真正改变时调用 API
+- 避免无效的 UI 更新
+
 ### 性能建议
 
 1. **使用 C-API 组件**
@@ -1731,6 +2492,261 @@ const tap = Gesture.Tap()
 2. 检查 Module 是否正确注册
 3. 确认线程类型 (UI/Worker)
 4. 检查 N-API 绑定是否正确
+
+### 常见问题与解决方案
+
+#### RNOH_C_API_ARCH 未设置
+**现象**: 启动后闪退，提示没有设置 `RNOH_C_API_ARCH`
+
+**解决方案**:
+1. 在环境变量中设置 `RNOH_C_API_ARCH=1`
+2. 重启 DevEco Studio
+3. 运行 `Build > Clean Project`，重新编译
+4. 或在 `CMakeLists.txt` 中设置：`set(RNOH_C_API_ARCH, 1)`
+
+#### libRNOHApp 绑定失败
+**错误信息**: `Couldn't create bindings between ETS and CPP. libRNOHApp is undefined`
+
+**原因**: `librnoh_app.so` 不存在或依赖的 `libhermes.so` 未打包
+
+**解决方案**:
+1. 在 `entry/build-profile.json5` 中添加 `externalNativeOptions`
+2. 确认 `libhermes.so` 打包到 hap 包中
+3. 在 har 模块的 `build-profile.json5` 中添加：
+   ```json5
+   "nativeLib": {
+     "excludeFromHar": false
+   }
+   ```
+
+#### 路径过长导致编译失败
+**现象**: 找不到 `TextLayoutManager.cpp`
+
+**原因**: 工程路径太长
+
+**解决**: 缩短工程路径
+
+#### Codegen 生成文件找不到
+**现象**: 找不到 `react_native_openharmony/generated/ts` 文件
+
+**解决方案**:
+1. 执行 Codegen
+2. 通过 `--cpp-output-path` 和 `--rnoh-module-path` 参数调整输出位置
+3. 或手动复制 generated 文件夹到正确位置
+
+#### Linking.canOpenURL() 一直返回 false
+**问题**: 未在 `module.json5` 中配置 scheme
+
+**解决**: 在 `module.json5` 的 `querySchemes` 字段配置：
+```json5
+"querySchemes": ["http", "https", "yourapp"]
+```
+
+#### 键盘事件未响应
+**现象**: Keyboard 下的监听事件未响应
+
+**原因**: RNOH 只监听最上层子窗口的键盘事件
+
+**解决方案**:
+1. 调整 RN 显示的窗口，让其显示在 `lastWindow`
+2. 修改 RNOH 源码，监听对应窗口（如 `MainWindow`）的键盘事件
+
+#### 字体变小问题（5.0.0.500 版本）
+**现象**:
+1. 同一个 bundle 在自定义 UIAbility 场景下字体明显变小
+2. 使用 RNAbility 时，Metro 加载的 RN 页面字体变小
+
+**原因**: CPP 侧拿到 `fontScale` 为 0（正常为 1）
+
+**解决方案**:
+- 现象1：在 `Ability.onWindowStageCreate()` 中初始化 `RNInstancesCoordinator`
+- 现象2：延迟预加载 Metro bundle 的代码
+
+#### setNativeProps 只能生效一次
+**问题**: 启用 Fabric 后，`setNativeProps` 只在应用打开后生效一次
+
+**原因**: RN 框架社区已知问题，`setNativeProps` 在 0.72.5 版本已废弃
+
+**解决**: 使用 `setState` 进行状态设置
+
+### 性能优化最佳实践
+
+#### 使用 Release 版本
+**问题**: Debug 包性能有瓶颈（滚动缓慢、动画卡顿）
+
+**解决方案**: 使用 release 版本的 RN 包编译 release 版本
+
+#### React 18 Automatic Batching
+**特性**: 默认启用自动批量变更状态（`concurrentRoot: true`）
+
+**优势**: 每 6~7 次 `setState` 才进行一次页面重新渲染
+
+**建议**: 默认开启，不要修改 `disableConcurrentRoot` 配置
+
+#### PureComponent 和 React.memo
+**PureComponent**: 浅比较 `props` 和 `state`，避免不必要的渲染
+
+**React.memo**: props 未改变时跳过重新渲染
+
+**注意**: 深层次数据变化不触发渲染
+
+#### 列表优化
+```typescript
+<FlatList
+  data={largeData}
+  renderItem={renderItem}
+  keyExtractor={keyExtractor}
+  removeClippedSubviews={true}  // 开启子视图剪裁
+  // 长列表不设置 initialNumToRender（序号 >= initialNumToRender 的 Item 渲染速度较慢）
+/>
+```
+
+#### setState 优化
+```typescript
+// 合并 setState
+setState((prevState) => ({
+  ...prevState,
+  field1: value1,
+  field2: value2
+}));
+
+// 使用 Promise.all 合并多个异步 setState
+await Promise.all([
+  setStateAsync(value1),
+  setStateAsync(value2)
+]);
+```
+
+#### 预加载策略
+1. **预加载 RN 页面**：在应用启动时提前加载资源
+2. **预创建 RN 实例**：在应用启动阶段预创建 React Native 实例
+3. **FrameNode 预加载**：通过 FrameNode 提前进行资源加载和渲染
+
+### 内存管理最佳实践
+
+#### 总是清理定时器
+```typescript
+useEffect(() => {
+  const timeoutId = setTimeout(() => {
+    // 操作
+  }, 1000);
+  return () => clearTimeout(timeoutId);
+}, []);
+```
+
+#### 总是停止动画
+```typescript
+useEffect(() => {
+  animation.start();
+  return () => animation.stop();
+}, []);
+```
+
+#### 总是移除监听器
+```typescript
+useEffect(() => {
+  const subscription = emitter.addListener('event', handler);
+  return () => subscription.remove();
+}, []);
+```
+
+### 类型安全最佳实践
+
+#### 避免使用 any
+```typescript
+// ❌ 避免
+function foo(data: any) { ... }
+
+// ✅ 推荐
+function foo(data: DataType) { ... }
+```
+
+#### 避免使用 @ts-ignore
+```typescript
+// ❌ 避免
+// @ts-ignore
+const value = obj.property;
+
+// ✅ 推荐
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const value = obj.property as any;
+```
+
+#### 避免滥用非空断言
+```typescript
+// ❌ 避免
+const value = context!.property;
+
+// ✅ 推荐
+if (!context) {
+  throw new Error('Context not available');
+}
+const value = context.property;
+```
+
+### 开发工作流程
+
+```bash
+# 1. 安装依赖
+npm run i
+
+# 2. 代码生成
+npm run codegen
+
+# 3. 开发构建
+npm run dev
+
+# 4. 类型检查
+npm run typecheck
+
+# 5. 代码检查
+npm run lint:js
+
+# 6. 格式化
+npm run format
+
+# 7. 运行测试
+npm run test
+
+# 8. 完整验证
+npm run verify
+```
+
+### 调试技巧
+
+#### 性能分析
+```typescript
+import { Benchmarker } from './benchmarks/Benchmarker';
+
+<Benchmarker
+  samplesCount={100}
+  renderContent={(key) => <MyComponent key={key} />}
+/>
+```
+
+#### 日志系统
+```typescript
+// 创建带上下文的logger
+this.logger = this.ctx.logger.clone("ComponentName");
+
+// 使用
+this.logger.debug('Message');
+this.logger.info('Message');
+this.logger.warn('Message');
+this.logger.error('Message');
+```
+
+#### 错误处理
+```typescript
+import { RNOHError } from './RNOHError';
+
+RNOHError.throw(
+  RNOHErrorDomain.RNOH,
+  'INVALID_COMPONENT_TAG',
+  `Component with tag ${tag} does not exist`,
+  {tag}
+);
+```
 
 ---
 
@@ -4644,6 +5660,2763 @@ FastImage.preload([
 - **OpenHarmony 官方论坛**: https://forums.openharmony.cn/
 - **CSDN OpenHarmony 专区**: https://openharmonycrossplatform.csdn.net/
 - **掘金 OpenHarmony 标签**: https://juejin.cn/tag/OpenHarmony
+
+---
+
+## 测试计划与调试
+
+### tester 测试应用
+
+**位置**: `/Users/wuzhao/Desktop/ty/rnoh/react-native-openharmony/tester`
+
+**启动步骤**：
+```bash
+cd tester
+npm run i              # 安装依赖（不是 npm i）
+npm start              # 启动 Metro 服务器
+# 在 DevEco Studio 中打开 tester/harmony 项目并运行
+```
+
+### 测试计划文档
+
+**位置**: `tester/plan/`
+
+**文档命名规范**：
+- `iteration_XXX_YYY_[主题].md` - 每个迭代（50个测试）的详细计划
+- `SUMMARY_ZZZ_FINAL.md` - 迭代完成后的总结报告
+
+**迭代示例**：
+| 文件 | 测试范围 | 关键内容 |
+|------|----------|----------|
+| iteration_901_950_image_gesture_scroll_input_style.md | 图片、手势、滚动、输入框 | Image组件、手势冲突、ScrollView |
+| iteration_851_900_network_storage_worker_bridge.md | 网络、存储、Worker、Bridge | NetworkingTurboModule、AsyncStorage |
+| iteration_801_850_animation_layout_rendering.md | 动画、布局、渲染 | Animated API、Yoga布局 |
+| iteration_751_800_dataflow_state_events.md | 数据流、状态、事件 | Context、事件系统 |
+
+### 常用测试命令
+
+```bash
+# 运行特定测试
+npm test -- --testNamePattern="StatusBar"
+
+# 检查类型
+npm run typecheck
+
+# 验证包
+npm run verify
+```
+
+### 调试技巧
+
+1. **查看日志**：使用 DevEco Studio 的 Hilog 工具
+2. **检查 TurboModule**：确认 `getConstants()` 返回值
+3. **调试布局问题**：使用 React DevTools 查看 ShadowTree
+4. **性能分析**：使用 Chrome DevTools 的 Performance 面板
+
+---
+
+## 手势系统核心机制
+
+### TouchDispatcher 触摸分发器
+
+**位置**: `RNOH/TouchDispatcher.ets`
+
+```typescript
+export class TouchDispatcher {
+  private static MEANINGFUL_MOVE_THRESHOLD = 1;  // 移动阈值
+  private targetTagByTouchId: Map<number, Tag> = new Map();  // 触摸ID到组件Tag的映射
+
+  public handleTouchEvent(touchEvent: TouchEvent) {
+    // 1. 清理已删除的组件
+    this.maybeRemoveDeletedTargets();
+    // 2. 记录新的触摸目标
+    this.recordNewTouchTargets(touchEvent);
+    // 3. 取消已处理的触摸
+    this.cancelHandledTouches(timestamp);
+    // 4. 过滤无意义的移动事件
+    if (this.canIgnoreEvent(touchEvent)) return;
+    // 5. 发送触摸事件到 C++ 层处理
+    this.rnInstance.emitComponentEvent(-1, RNOHEventEmitRequestHandlerName.Touch, touchEvent);
+  }
+
+  // 性能优化：忽略微小移动
+  private isMoveMeaningful(currentTouch: TouchObject, previousTouch: TouchObject): boolean {
+    const dx = currentTouch['pageX'] - previousTouch['pageX'];
+    const dy = currentTouch['pageY'] - previousTouch['pageY'];
+    return dx*dx + dy*dy > TouchDispatcher.MEANINGFUL_MOVE_THRESHOLD;
+  }
+}
+```
+
+### ResponderLockDispatcher 手势冲突解决
+
+**位置**: `RNOH/ResponderLockDispatcher.ts`
+
+```typescript
+export class ResponderLockDispatcher {
+  // 按组件 Tag -> 锁定源 -> 是否锁定的映射
+  private isLockedByOriginByTag: Map<Tag, Map<Origin, boolean>> = new Map()
+
+  public onBlockResponder(tag: Tag, origin: Origin) {
+    const tags = this.componentManagerRegistry.getComponentManagerLineage(tag)
+      .map(d => d.getTag())
+
+    tags.forEach((tag) => {
+      const currentNumberOfLocks = this.getTotalNumberOfLocks(tag)
+      if (currentNumberOfLocks === 0) {
+        // 首次锁定时，阻塞原生响应器
+        this.componentCommandHub.dispatchCommand(
+          tag,
+          RNOHComponentCommand.BLOCK_NATIVE_RESPONDER,
+          undefined
+        )
+      }
+      this.isLockedByOriginByTag.get(tag).set(origin, true)
+    })
+  }
+}
+```
+
+### ScrollView 嵌套滚动处理
+
+**位置**: `RNOHCorePackage/ComponentInstances/ScrollViewComponentInstance.cpp`
+
+```cpp
+void ScrollViewComponentInstance::onNativeResponderBlockChange(bool isBlocked) {
+  m_isNativeResponderBlocked = isBlocked;
+  auto newEnableScrollInteraction = isEnableScrollInteraction(m_props && m_props->scrollEnabled);
+
+  if (newEnableScrollInteraction != m_enableScrollInteraction) {
+    m_enableScrollInteraction = newEnableScrollInteraction;
+    m_scrollNode.setEnableScrollInteraction(m_enableScrollInteraction);
+  }
+
+  // 处理 PullToRefreshView 的父子手势冲突
+  auto parent = std::dynamic_pointer_cast<PullToRefreshViewComponentInstance>(this->getParent().lock());
+  if (parent) {
+    if (isBlocked) {
+      parent->setRefreshPullDownRation(0.0);  // 禁用下拉刷新
+    } else {
+      parent->setRefreshPullDownRation(1.0);  // 启用下拉刷新
+    }
+  }
+}
+```
+
+---
+
+## Animated API 原生驱动架构
+
+### AnimatedNodesManager 动画核心引擎
+
+**位置**: `RNOHCorePackage/TurboModules/Animated/AnimatedNodesManager.cpp`
+
+```cpp
+class AnimatedNodesManager {
+  // 节点存储
+  std::unordered_map<Tag, std::unique_ptr<AnimatedNode>> m_nodeByTag;
+  // 动画驱动器
+  std::unordered_map<Tag, std::unique_ptr<AnimationDriver>> m_animationById;
+  // 事件驱动器
+  std::vector<std::unique_ptr<EventAnimationDriver>> m_eventDrivers;
+  // 需要更新的节点集合
+  std::unordered_set<Tag> m_nodeTagsToUpdate;
+
+  // 支持的节点类型
+  void createNode(Tag tag, folly::dynamic const& config) {
+    auto type = config["type"].asString();
+    if (type == "props") {
+      node = std::make_unique<PropsAnimatedNode>(config, *this);
+    } else if (type == "style") {
+      node = std::make_unique<StyleAnimatedNode>(config, *this);
+    } else if (type == "value") {
+      node = std::make_unique<ValueAnimatedNode>(config);
+    } else if (type == "transform") {
+      node = std::make_unique<TransformAnimatedNode>(config, *this);
+    } else if (type == "interpolation") {
+      node = std::make_unique<InterpolationAnimatedNode>(config, *this);
+    }
+    // ... 更多节点类型
+  }
+}
+```
+
+### SpringAnimationDriver 弹簧动画
+
+**位置**: `RNOHCorePackage/TurboModules/Animated/Drivers/SpringAnimationDriver.cpp`
+
+```cpp
+void SpringAnimationDriver::advance(double deltaTime) {
+  double c = m_damping;    // 阻尼系数
+  double m = m_mass;       // 质量
+  double k = m_stiffness;  // 刚度
+
+  // 计算阻尼比
+  double zeta = c / (2 * std::sqrt(k * m));
+  double omega0 = std::sqrt(k / m);
+
+  if (zeta < 1) {
+    // 欠阻尼状态 - 产生震荡
+    double envelope = std::exp(-zeta * omega0 * t);
+    position = m_toValue - envelope * (
+      (v0 + zeta * omega0 * x0) / omega1 * std::sin(omega1 * t) +
+      x0 * std::cos(omega1 * t)
+    );
+  }
+
+  // 超调处理
+  if (m_overshootClamping && isOvershooting()) {
+    m_fromValue = m_toValue;
+    m_position = m_toValue;
+    m_velocity = 0;
+  }
+}
+```
+
+### VSync 驱动机制
+
+```cpp
+void NativeAnimatedTurboModule::runUpdates() {
+  auto now = std::chrono::high_resolution_clock::now();
+  auto frameTime = std::chrono::duration_cast<std::chrono::nanoseconds>(
+      now.time_since_epoch());
+
+  // 运行动画更新
+  auto tagsToUpdate = this->m_animatedNodesManager.runUpdates(frameTime.count());
+
+  // 在主线程更新 Native Props
+  if (m_ctx.taskExecutor->isOnTaskThread(TaskThread::MAIN)) {
+    this->setNativeProps(tagsToUpdate);
+  } else {
+    m_ctx.taskExecutor->runTask(TaskThread::MAIN, [...]());
+  }
+}
+```
+
+---
+
+## 网络与图片加载
+
+### NetworkingTurboModule 核心功能
+
+**位置**: `RNOHCorePackage/turboModules/Networking/NetworkingTurboModule.ts`
+
+**支持的 HTTP 方法**：
+```typescript
+private REQUEST_METHOD_BY_NAME: Record<string, http.RequestMethod> = {
+  OPTIONS: http.RequestMethod.OPTIONS,
+  GET: http.RequestMethod.GET,
+  POST: http.RequestMethod.POST,
+  PUT: http.RequestMethod.PUT,
+  DELETE: http.RequestMethod.DELETE,
+}
+```
+
+**中文编码处理**：
+```typescript
+private getEncodedURI(str: string): string {
+  if (this.isEncodedURI(str)) {
+    return str;
+  }
+  return str.replace(/[\u4e00-\u9fa5]/g, (char) => encodeURIComponent(char));
+}
+```
+
+### RemoteImageCache 三级缓存
+
+**架构**：
+```
+内存缓存 (128个对象) → 磁盘缓存 (128个文件) → 网络下载
+```
+
+**内存缓存**：
+```typescript
+export class RemoteImageMemoryCache extends RemoteImageCache<RemoteImageSource> {
+  // 默认容量：128个图片源对象
+  // LRU淘汰策略：当超过最大容量时，删除最旧的条目
+}
+```
+
+**磁盘缓存**：
+```typescript
+export class RemoteImageDiskCache extends RemoteImageCache<boolean> {
+  private getCacheKey(uri: string): string {
+    const reg = /[^a-zA-Z0-9 -]/g;
+    return uri.replace(reg, '');
+  }
+
+  // 启动时恢复已有缓存文件
+  constructor(maxSize: number, cacheDir: string) {
+    const filenames: string[] = fs.listFileSync(cacheDir);
+    filenames.forEach(filename => {
+      this.set(filename, true);
+    });
+  }
+}
+```
+
+**查询优先级**：
+```typescript
+public queryCache(uri: string): 'memory' | 'disk' | undefined {
+  if (this.diskCache.has(uri)) {
+    return 'disk';
+  }
+  if (this.memoryCache.has(uri)) {
+    return 'memory';
+  }
+  return undefined;
+}
+```
+
+### 图片格式支持
+
+**支持的格式**：
+- 静态图片：JPEG, PNG, GIF (单帧), BMP, WEBP
+- 动画格式：GIF (多帧)
+- 检测方法：`await imageSource.getFrameCount()`
+
+**解码流程**：
+```typescript
+const imageSource = image.createImageSource(uri);
+const frameCounter = await imageSource.getFrameCount();
+
+if (frameCounter === 1) {
+  // 静态图片 → PixelMap
+  const pixelMap = await imageSource.createPixelMap();
+} else {
+  // 动画 GIF → 保持原格式
+  this.imageSource = new ImageSourceHolder(remoteImage.getLocation());
+}
+```
+
+### 网络请求优化
+
+**请求去重机制**：
+```typescript
+private activeRequestByUrl: Map<string, Promise<FetchResult>> = new Map();
+private activePrefetchByUrl: Map<string, Promise<boolean>> = new Map();
+
+// 防止同一个URL的重复并发请求
+// 多个组件请求同一图片时共享请求结果
+```
+
+**流式传输**：
+```typescript
+httpRequest.requestInStream(url, finalRequestOptions, (err, data) => {
+  // 流式处理，避免内存溢出
+});
+
+httpRequest.on('dataReceive', (chunk) => {
+  dataChunks.push(chunk);
+  currentLength += chunk.byteLength;
+  // 触发进度回调
+});
+```
+
+---
+
+## 布局系统 (Yoga Layout)
+
+### Yoga 集成架构
+
+RNOH 使用 Facebook Yoga 作为核心布局引擎，与鸿蒙 ArkUI 深度集成：
+
+```
+JS 层 (Flexbox 样式)
+    ↓
+ShadowTree (YogaLayoutableShadowNode)
+    ↓
+Yoga 计算引擎 (YGNode)
+    ↓
+LayoutMetrics 转换
+    ↓
+ArkUI 布局应用
+```
+
+### 核心类：YogaLayoutableShadowNode
+
+**文件位置**: `RNOH/arkui/YogaLayoutableShadowNode.h`
+
+```cpp
+class YogaLayoutableShadowNode : public LayoutableShadowNode {
+  mutable YGConfig yogaConfig_;      // Yoga 配置
+  mutable YGNode yogaNode_;         // Yoga 节点
+  ListOfShared yogaLayoutableChildren_;  // Yoga 子节点列表
+
+public:
+  void layoutTree(LayoutContext, LayoutConstraints) override;
+  void layout(LayoutContext) override;
+  void cleanLayout() override;
+  void dirtyLayout() override;
+};
+```
+
+### LayoutContext 结构
+
+```cpp
+struct LayoutContext {
+  Float pointScaleFactor{1.0};                          // 点缩放因子
+  std::vector<LayoutableShadowNode const *> *affectedNodes{}; // 受影响节点列表
+  bool swapLeftAndRightInRTL{false};                    // RTL 左右交换标志
+  Float fontSizeMultiplier{1.0};                        // 字体大小倍数
+  Point viewportOffset{};                               // 视口偏移
+};
+```
+
+**线程局部存储优化**：
+```cpp
+thread_local LayoutContext threadLocalLayoutContext;
+```
+
+### 布局计算流程
+
+```cpp
+void YogaLayoutableShadowNode::layoutTree(
+    LayoutContext layoutContext,
+    LayoutConstraints layoutConstraints) {
+
+  // 1. 设置 Yoga 配置
+  yogaConfig_.pointScaleFactor = layoutContext.pointScaleFactor;
+
+  // 2. 转换布局约束
+  auto &yogaStyle = yogaNode_.getStyle();
+  yogaStyle.maxDimensions() = ...;
+  yogaStyle.minDimensions() = ...;
+
+  // 3. 处理 RTL 方向
+  auto direction = yogaDirectionFromLayoutDirection(
+      layoutConstraints.layoutDirection);
+
+  // 4. 执行 Yoga 布局计算
+  YGNodeCalculateLayout(&yogaNode_, ownerWidth, ownerHeight, direction);
+
+  // 5. 更新布局指标
+  if (yogaNode_.getHasNewLayout()) {
+    auto layoutMetrics = layoutMetricsFromYogaNode(yogaNode_);
+    setLayoutMetrics(layoutMetrics);
+  }
+
+  // 6. 递归布局子节点
+  layout(layoutContext);
+}
+```
+
+### 并发安全机制
+
+**节点克隆处理**：
+```cpp
+void YogaLayoutableShadowNode::adoptYogaChild(size_t index) {
+  if (childNode.yogaNode_.getOwner() == nullptr) {
+    // 直接拥有子节点
+    childNode.yogaNode_.setOwner(&yogaNode_);
+  } else {
+    // 需要克隆避免 ABA 问题
+    auto clonedChildNode = childNode.clone({});
+    replaceChild(childNode, clonedChildNode, index);
+  }
+}
+```
+
+**魔术数标记**：`0xBADC0FFEE0DDF00D` 用于标识所有权变更
+
+### 布局约束处理
+
+**LayoutConstraints 结构**：
+```cpp
+struct LayoutConstraints {
+  Size minimumSize{0, 0};                              // 最小尺寸
+  Size maximumSize{                                    // 最大尺寸
+      std::numeric_limits<Float>::infinity(),
+      std::numeric_limits<Float>::infinity()};
+  LayoutDirection layoutDirection{LayoutDirection::Undefined};  // 布局方向
+
+  Size clamp(const Size &size) const {
+    return Size{
+        std::clamp(size.width, minimumSize.width, maximumSize.width),
+        std::clamp(size.height, minimumSize.height, maximumSize.height)};
+  }
+};
+```
+
+### 约束转换机制
+
+| React Native 约束 | Yoga 测量模式 |
+|-------------------|---------------|
+| 具体宽度 + 具体高度 | Exactly + Exactly |
+| 具体宽度 + undefined | Exactly + Undefined |
+| undefined + 具体高度 | Undefined + Exactly |
+
+### 布局脏检查优化
+
+```cpp
+void YogaLayoutableShadowNode::cleanLayout() {
+  yogaNode_.setDirty(false);
+}
+
+void YogaLayoutableShadowNode::dirtyLayout() {
+  yogaNode_.setDirty(true);
+}
+```
+
+**优化原理**：只有标记为 dirty 的节点才会重新计算布局
+
+---
+
+## Text 组件渲染
+
+### Text 组件架构
+
+```
+React Native JS 层
+    ↓
+Props 解析 (TextPropsParser)
+    ↓
+Shadow Tree (TextShadowNode)
+    ↓
+Component Instance (TextComponentInstance)
+    ↓
+ArkUI Layer (TextNode)
+    ↓
+文本测量 (TextMeasurer)
+    ↓
+最终渲染
+```
+
+### 核心类定义
+
+**TextNode** - ArkUI 文本节点：
+```cpp
+class TextNode : public ArkUINode {
+private:
+    enum {
+        FLAG_PADDING = 0,
+        FLAG_MINFONTSIZE,
+        FLAG_MAXFONTSIZE,
+        FLAG_COPYOPTION,
+        FLAG_ENABLE,
+        FLAG_MAX
+    };
+    bool m_initFlag[FLAG_MAX] = {0};
+    float m_minFontSize = 0.0;
+    float m_maxFontSize = 0.0;
+    int32_t m_testCopyOption = 0;
+    std::shared_ptr<TextMeasureInfo> m_measureInfo;
+
+public:
+    void setTextContent(const std::string &content);
+    void setFontColor(uint32_t color);
+    void setFontSize(float size);
+    void setFontWeight(int32_t weight);
+    void setTextLineHeight(float lineHeight);
+    void setTextDecoration(int32_t type, uint32_t color);
+};
+```
+
+### TextComponentInstance 实现
+
+**文件位置**: `RNOHCorePackage/ComponentInstances/TextComponentInstance.h`
+
+```cpp
+class TextComponentInstance : public CppComponentInstance<
+    facebook::react::ParagraphShadowNode>,
+                            public TextNodeDelegate {
+private:
+    TextNode m_textNode{};
+    StackNode* m_stackNodePtr = nullptr;
+    std::vector<std::shared_ptr<ArkUINode>> m_childNodes{};
+    FragmentTouchTargetByTag m_fragmentTouchTargetByTag{};
+    bool m_hasCheckNesting = false;
+
+public:
+    void onPropsChanged(SharedConcreteProps const& textProps) override;
+    void onChildInserted(ComponentInstance::Shared const& childComponentInstance,
+                        std::size_t index) override;
+};
+```
+
+### TextMeasurer - 文本测量引擎
+
+**文件位置**: `RNOH/TextMeasurer.h`
+
+```cpp
+class TextMeasurer : public facebook::react::TextLayoutManagerDelegate {
+public:
+    facebook::react::TextMeasurement measure(
+        facebook::react::AttributedString attributedString,
+        facebook::react::ParagraphAttributes paragraphAttributes,
+        facebook::react::LayoutConstraints layoutConstraints) override;
+
+    ArkUITypographyBuilder measureTypography(
+        facebook::react::AttributedString const& attributedString,
+        facebook::react::ParagraphAttributes const& paragraphAttributes,
+        facebook::react::LayoutConstraints const& layoutConstraints);
+
+private:
+    std::shared_ptr<TextMeasureRegistry> m_textMeasureRegistry;
+    std::shared_ptr<FontCollection> m_fontCollection;
+};
+```
+
+### 文本属性分类
+
+**颜色属性**：
+- `foregroundColor` - 前景色
+- `backgroundColor` - 背景色
+- `opacity` - 透明度
+
+**字体属性**：
+- `fontFamily` - 字体系列
+- `fontSize` - 字号
+- `fontWeight` - 字重 (100-900)
+- `fontStyle` - 字体样式 (normal/italic)
+- `letterSpacing` - 字间距
+
+**段落样式**：
+- `lineHeight` - 行高
+- `alignment` - 对齐方式
+- `baseWritingDirection` - 书写方向
+
+**文本装饰**：
+- `textDecorationColor` - 装饰颜色
+- `textDecorationLineType` - 装饰线类型
+- `textDecorationStyle` - 装饰样式
+
+### 字重映射表
+
+```cpp
+int32_t TextConversions::getArkUIFontWeight(int32_t fontWeight) {
+    switch (fontWeight) {
+        case (int)facebook::react::FontWeight::Weight100:
+            return ArkUI_FontWeight::ARKUI_FONT_WEIGHT_W100;
+        case (int)facebook::react::FontWeight::Weight400:
+            return ArkUI_FontWeight::ARKUI_FONT_WEIGHT_W400;
+        case (int)facebook::react::FontWeight::Weight700:
+            return ArkUI_FontWeight::ARKUI_FONT_WEIGHT_W700;
+        case (int)facebook::react::FontWeight::Weight900:
+            return ArkUI_FontWeight::ARKUI_FONT_WEIGHT_W900;
+        default:
+            return ArkUI_FontWeight::ARKUI_FONT_WEIGHT_NORMAL;
+    }
+}
+```
+
+### AttributedString 处理
+
+**片段结构**：
+```cpp
+class Fragment {
+    std::string string;
+    TextAttributes textAttributes;
+    ShadowView parentShadowView;
+    bool isAttachment() const;  // 是否为附件（Image、View）
+};
+```
+
+**文本转换处理**：
+1. 检查缓存
+2. 处理字体缩放 (`allowFontScaling`)
+3. 处理文本转换 (`textTransform`)
+4. 字体大小自适应 (`adjustsFontSizeToFit`)
+5. 使用 `ArkUITypographyBuilder` 测量
+
+### 样式继承机制
+
+```typescript
+// 父 Text 组件的样式会被子 Text 组件继承
+<Text style={{fontSize: 20, color: 'red'}}>
+  这里的文本继承红色和 20pt 字号
+  <Text style={{color: 'blue'}}>
+    这里的文本继承 20pt 字号，但覆盖为蓝色
+  </Text>
+</Text>
+```
+
+### 文本选择功能
+
+```typescript
+// 设置文本可选性
+int32_t testCopyOption = textProps->isSelectable ?
+    ArkUI_CopyOptions::ARKUI_COPY_OPTIONS_LOCAL_DEVICE :
+    ArkUI_CopyOptions::ARKUI_COPY_OPTIONS_NONE;
+
+// 设置选择颜色
+if (textProps->rawProps.count("selectionColor") != 0) {
+    uint32_t selectionColor = textProps->rawProps["selectionColor"].asInt();
+    selectionColor = (selectionColor & 0x00ffffff) | 0x33000000;
+    m_textNode.setSelectedBackgroundColor(selectionColor);
+}
+```
+
+### 数据检测支持
+
+**支持的类型**：
+- `address` - 地址
+- `link` - 链接
+- `phoneNumber` - 电话号码
+- `email` - 邮箱
+- `all` - 全部
+
+---
+
+## SafeArea 和 StatusBar
+
+### SafeArea 架构
+
+```
+鸿蒙系统事件 (avoidAreaChange)
+    ↓
+SafeAreaInsetsProvider (单例)
+    ↓
+EventEmitter
+    ↓
+SafeAreaTurboModule
+    ↓
+React Native 事件
+    ↓
+SafeAreaView 组件
+```
+
+### SafeAreaInsetsProvider
+
+**文件位置**: `RNOHCorePackage/turboModules/SafeAreaInsetsProvider.ts`
+
+```typescript
+export class SafeAreaInsetsProvider {
+  private currentInsets: SafeAreaInsets = {
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0
+  };
+
+  public eventEmitter: EventEmitter<{
+    "SAFE_AREA_INSETS_CHANGE": [SafeAreaInsets]
+  }>;
+
+  constructor(uiAbilityContext: common.UIAbilityContext) {
+    // 监听窗口避让区域变化
+    WindowUtils.getLastWindow(uiAbilityContext).then((window) => {
+      window.on("avoidAreaChange", this.onSafeAreaChange.bind(this));
+    });
+  }
+
+  private onSafeAreaChange() {
+    this.createSafeAreaInsets().then((insets) => {
+      this.currentInsets = insets;
+      this.eventEmitter.emit("SAFE_AREA_INSETS_CHANGE", insets);
+    });
+  }
+}
+```
+
+### Insets 计算逻辑
+
+**多区域合并算法**：
+```typescript
+function getSafeAreaInsetsFromAvoidAreas(
+  avoidAreas: WindowUtils.AvoidArea[],
+  windowSize: {width: number, height: number}
+): SafeAreaInsets {
+  return avoidAreas.reduce((currentInsets, avoidArea) => {
+    return {
+      top: Math.max(currentInsets.top,
+        avoidArea.topRect.height + avoidArea.topRect.top),
+      left: Math.max(currentInsets.left,
+        avoidArea.leftRect.width + avoidArea.leftRect.left),
+      right: Math.max(currentInsets.right,
+        avoidArea.rightRect.left > 0 ?
+          windowSize.width - avoidArea.rightRect.left : 0),
+      bottom: Math.max(currentInsets.bottom,
+        avoidArea.bottomRect.top > 0 ?
+          windowSize.height - avoidArea.bottomRect.top : 0),
+    }
+  }, { top: 0, left: 0, right: 0, bottom: 0 })
+}
+```
+
+**区域类型**：
+- `TYPE_SYSTEM` - 系统栏
+- `TYPE_CUTOUT` - 刘海屏
+- `TYPE_NAVIGATION_INDICATOR` - 导航栏
+- `waterfallDisplayAreaRects` - 瀑布屏区域
+
+### SafeAreaView 动态 Padding
+
+**文件位置**: `Libraries/Components/View/SafeAreaView.harmony.tsx`
+
+```typescript
+const getPaddingTop = (inset: number, pageY: number) => {
+  return Math.max(0, inset - (pageY < 0 ? pageY * -1 : pageY));
+}
+
+const getPaddingBottom = (
+  insetBottom: number, insetTop: number, paddingTop: number,
+  height: number, windowHeight: number, pageY: number, positionY: number
+) => {
+  // 处理多种边界情况：
+  // 1. SafeArea 不可见或超出视口
+  // 2. SafeAreaView 不在顶部且不是全高
+  // 3. SafeAreaView 全屏且顶部对齐
+  // 4. 嵌套场景和滚动视图
+
+  const isVisible = positionY + height > 0 && positionY < windowHeight;
+  if (!isVisible) return 0;
+
+  const isFullHeight = height >= windowHeight;
+  const isAtTop = positionY <= 0;
+
+  if (isFullHeight && isAtTop) {
+    return insetBottom;
+  }
+
+  // 计算底部 padding...
+}
+```
+
+### StatusBar API 12 兼容性
+
+**颜色动画实现**：
+```typescript
+// API 12 新特性
+let systemBarProperties = {
+  statusBarContentColor: '#E5FFFFFF',
+  enableStatusBarAnimation: animated,
+};
+
+if (!animated) {
+  windowInstance.setWindowSystemBarProperties(systemBarProperties);
+} else {
+  // 手动创建颜色动画（API 12 动画可能不工作）
+  let colors = interpolateColor(this._currentColor, colorString, 20);
+  let intervalId = setInterval(() => {
+    windowInstance.setWindowSystemBarProperties({
+      statusBarColor: colors[i]
+    });
+  }, 16);
+}
+```
+
+### 颜色插值算法
+
+```typescript
+function interpolateColor(color1: string, color2: string, steps: number): string[] {
+  let colorStartRGB = hexToRGB(color1);
+  let colorStopRGB = hexToRGB(color2);
+
+  let colorArray: string[] = [];
+  for (let i = 0; i < steps; i++) {
+    const ratio = i / (steps - 1);
+    const r = Math.round(colorStartRGB.r +
+      (colorStopRGB.r - colorStartRGB.r) * ratio);
+    const g = Math.round(colorStartRGB.g +
+      (colorStopRGB.g - colorStartRGB.g) * ratio);
+    const b = Math.round(colorStartRGB.b +
+      (colorStopRGB.b - colorStartRGB.b) * ratio);
+
+    colorArray.push(`#${r.toString(16).padStart(2, '0')}` +
+                   `${g.toString(16).padStart(2, '0')}` +
+                   `${b.toString(16).padStart(2, '0')}`);
+  }
+  return colorArray;
+}
+```
+
+### SafeArea 常见问题
+
+**问题 1**：SafeAreaView 在滚动视图中不正确
+- **原因**：动态计算依赖 `pageY` 和 `positionY`
+- **解决**：使用 `onScroll` 回调更新计算
+
+**问题 2**：刘海屏适配问题
+- **原因**：`waterfallDisplayAreaRects` 未正确计算
+- **解决**：使用 `display.getCutoutInfo()` 获取准确信息
+
+**问题 3**：StatusBar 动画不生效
+- **原因**：API 12 的 `enableStatusBarAnimation` 可能不工作
+- **解决**：使用手动颜色插值动画
+
+---
+
+## ScrollView 组件
+
+### ScrollView 架构
+
+```
+React Native JS 层
+    ↓
+Props 解析 (ScrollViewPropsParser)
+    ↓
+Shadow Tree (ScrollViewShadowNode)
+    ↓
+Component Instance (ScrollViewComponentInstance)
+    ↓
+ArkUI Layer (ScrollNode)
+    ↓
+RNScrollView.ets (ArkTS 封装)
+    ↓
+最终渲染
+```
+
+### 核心类定义
+
+**ScrollNode** - ArkUI 滚动节点：
+```cpp
+class ScrollNode : public ArkUINode {
+  ScrollNodeDelegate* m_scrollNodeDelegate;
+
+public:
+  void scrollTo(float x, float y, bool animated);
+  void setNestedScroll(ArkUI_ScrollNestedMode scrollNestedMode);
+  void setScrollOverScrollMode(std::string const& overScrollMode);
+};
+```
+
+**ScrollViewComponentInstance**：
+```cpp
+class ScrollViewComponentInstance
+    : public CppComponentInstance<facebook::react::ScrollViewShadowNode>,
+      public ScrollNodeDelegate {
+private:
+  enum ScrollState : int32_t { IDLE, SCROLL, FLING };
+
+  ScrollNode m_scrollNode;
+  StackNode m_contentContainerNode;
+  facebook::react::Size m_contentSize;
+  facebook::react::Size m_containerSize;
+  ScrollState m_scrollState = IDLE;
+};
+```
+
+### 嵌套滚动处理
+
+**嵌套滚动配置**：
+```typescript
+// RNScrollView.ets
+getNestedScroll(): NestedScrollOptions {
+  const isNestedInRefreshControl = this.shouldWrapWithPullToRefresh();
+  if (isNestedInRefreshControl) {
+    return {
+      scrollForward: NestedScrollMode.SELF_ONLY,
+      scrollBackward: NestedScrollMode.SELF_ONLY
+    };
+  }
+  return {
+    scrollForward: NestedScrollMode.SELF_FIRST,
+    scrollBackward: NestedScrollMode.SELF_FIRST
+  };
+}
+```
+
+**嵌套滚动模式**：
+- `SELF_ONLY`: 只有当前 ScrollView 响应滚动事件
+- `SELF_FIRST`: 当前 ScrollView 优先响应，传递给父视图
+- 在下拉刷新场景下禁用嵌套滚动以避免冲突
+
+### 事件处理机制
+
+**事件类型映射**：
+| RNOH 事件 | ArkUI 事件 | 描述 |
+|-----------|------------|------|
+| onScroll | onScroll | 滚动事件 |
+| onScrollBeginDrag | onScrollStart | 拖动开始 |
+| onScrollEndDrag | onScrollStop | 拖动结束 |
+| onMomentumScrollBegin | - | 动量滚动开始（状态判断） |
+| onMomentumScrollEnd | - | 动量滚动结束（状态判断） |
+
+**事件节流**：
+```typescript
+onScrollEvent() {
+  const now = Date.now();
+  if (this.allowNextScrollEvent ||
+      this.isScrolling &&
+      descriptor.props.scrollEventThrottle < now - this.lastScrollDispatchTime) {
+    this.lastScrollDispatchTime = now;
+    this.ctx.rnInstance.emitComponentEvent(
+      this.tag, "onScroll", this.createScrollEvent());
+  }
+}
+```
+
+### LazyForEach 性能优化
+
+**虚拟化渲染**：
+```typescript
+buildScrollCore() {
+  Scroll(this.scroller) {
+    Stack() {
+      LazyForEach(this.ctx.createComponentDataSource({ tag: this.tag }),
+        (descriptorWrapper: DescriptorWrapper) => {
+          (this.ctx as RNComponentContext).wrappedRNComponentBuilder.builder(
+            (this.ctx as RNComponentContext),
+            descriptorWrapper.tag
+          );
+        },
+        (descriptorWrapper: DescriptorWrapper) =>
+          descriptorWrapper.tag.toString() + "@" + descriptorWrapper.renderKey
+      );
+    }
+  }
+}
+```
+
+**优化策略**：
+1. 虚拟化渲染：只渲染可视区域内的组件
+2. 数据源管理：通过 `createComponentDataSource` 管理组件数据
+3. Key 管理：使用 tag + renderKey 作为唯一标识
+
+### scrollTo 命令实现
+
+```typescript
+scrollTo(xOffset: number, yOffset: number, animated: boolean = false) {
+  const animation: Animation | undefined = animated ?
+    { duration: 1000, curve: Curve.Smooth } : undefined;
+
+  const currentOffset = this.scroller.currentOffset();
+  if (!animation && currentOffset) {
+    this.positionBeforeScrolling = {
+      x: currentOffset.xOffset,
+      y: currentOffset.yOffset,
+    };
+    this.isScrolling = false;
+  }
+
+  this.scroller.scrollTo({ xOffset, yOffset, animation });
+  this.contentOffset = { x: xOffset, y: yOffset };
+}
+```
+
+### 下拉刷新集成
+
+```typescript
+private shouldWrapWithPullToRefresh() {
+  const pullToRefreshTag = this.parentTag;
+  if (pullToRefreshTag === undefined) return false;
+
+  const parentDescriptor = this.ctx.descriptorRegistry.getDescriptor(pullToRefreshTag);
+  return parentDescriptor?.type === RN_PULL_TO_REFRESH_VIEW_NAME;
+}
+
+build() {
+  if (this.shouldWrapWithPullToRefresh()) {
+    RNViewBase({ ctx: this.ctx, tag: this.parentTag }) {
+      RNPullToRefreshView({ ctx: this.ctx, tag: this.parentTag }) {
+        this.buildScrollCore();
+      }
+    }
+  }
+}
+```
+
+### ScrollView 常见问题
+
+**问题 1**：嵌套滚动冲突
+- **原因**：父子 ScrollView 同时响应滚动事件
+- **解决**：配置 `nestedScrollEnabled` 属性
+
+**问题 2**：LazyForEach 组件不更新
+- **原因**：renderKey 未变化
+- **解决**：确保 key 函数返回唯一标识
+
+---
+
+## Modal 组件
+
+### Modal 架构
+
+```
+React Native JS 层
+    ↓
+Shadow Tree (ModalHostViewShadowNode)
+    ↓
+Component Instance (ModalHostViewComponentInstance)
+    ↓
+RNModalHostView.ets (ArkTS)
+    ↓
+ModalHostViewDialog (@CustomDialog)
+    ↓
+CustomDialogController
+```
+
+### 核心类定义
+
+**ModalHostViewDialog**：
+```typescript
+@CustomDialog
+struct ModalHostViewDialog {
+  controller: CustomDialogController
+  @State showContent: boolean = false
+
+  aboutToAppear() {
+    this.controller = new CustomDialogController({
+      alignment: DialogAlignment.TopStart,
+      customStyle: true,
+      maskColor: Color.Transparent,
+      closeAnimation: { duration: 0 },
+      openAnimation: { duration: 0 },
+      autoCancel: false,
+    })
+    this.controller.open()
+  }
+}
+```
+
+### 动画类型支持
+
+**动画效果**：
+```typescript
+getTransitionEffect() {
+  if (this.descriptor.rawProps.animationType === 'slide') {
+    return TransitionEffect.move(TransitionEdge.BOTTOM)
+      .animation({ duration: 500 });  // MODAL_ANIMATION_DURATION
+  } else if (this.descriptor.rawProps.animationType === 'fade') {
+    return TransitionEffect.OPACITY.animation({ duration: 500 });
+  } else {
+    return TransitionEffect.IDENTITY;
+  }
+}
+```
+
+**动画类型**：
+- `'none'` - 无动画
+- `'slide'` - 从底部滑入（500ms）
+- `'fade'` - 淡入淡出（500ms）
+
+### ModalProps 属性
+
+```cpp
+class JSI_EXPORT ModalHostViewProps final : public ViewProps {
+public:
+  ModalHostViewAnimationType animationType{ModalHostViewAnimationType::None};
+  ModalHostViewPresentationStyle presentationStyle{
+      ModalHostViewPresentationStyle::FullScreen};
+  bool transparent{false};
+  bool statusBarTranslucent{false};
+  bool visible{false};
+  bool animated{false};
+  int identifier{0};
+};
+```
+
+**动画类型**：
+```cpp
+enum class ModalHostViewAnimationType { None, Slide, Fade };
+```
+
+**显示风格**：
+```cpp
+enum class ModalHostViewPresentationStyle {
+  FullScreen,     // 全屏
+  PageSheet,      // 页面表单
+  FormSheet,      // 表单表单
+  OverFullScreen  // 覆盖全屏
+};
+```
+
+### 显示/隐藏流程
+
+**显示流程**：
+1. 组件挂载 → `RNModalHostView.aboutToAppear()`
+2. 创建 DialogController
+3. 打开对话框 → `controller.open()`
+4. 触发 onShow 事件
+
+**隐藏流程**：
+1. 关闭信号
+2. 执行动画（如需要）
+3. 关闭对话框 → `controller.close()`
+4. 触发 onDismiss 事件
+
+### 触摸事件处理
+
+```typescript
+build() {
+  if (this.showContent) {
+    Stack() {
+      // 子组件渲染
+    }.onTouch((touchEvent) => {
+      if (this.showContent) {
+        this.touchDispatcher.handleTouchEvent(touchEvent)
+      }
+    })
+  }
+}
+```
+
+### 折叠屏适配
+
+```cpp
+void ModalHostViewComponentInstance::resetModalPosition(
+    DisplayMetrics const& displayMetrics,
+    SharedConcreteState const& state) {
+  FoldStatus foldStatus = static_cast<FoldStatus>(
+      ArkTSBridge::getInstance()->getFoldStatus());
+  auto isSplitScreenMode = ArkTSBridge::getInstance()->getIsSplitScreenMode();
+
+  if ((foldStatus == FOLD_STATUS_EXPANDED || foldStatus == FOLD_STATUS_HALF_FOLDED)
+      && isSplitScreenMode) {
+    m_rootStackNode.setPosition({
+        displayMetrics.screenPhysicalPixels.width /
+            displayMetrics.windowPhysicalPixels.scale, 0});
+  } else {
+    m_rootStackNode.setPosition({0, 0});
+  }
+}
+```
+
+---
+
+## TextInput 组件
+
+### TextInput 架构
+
+```
+React Native JS 层
+    ↓
+Props 解析 (TextInputPropsParser)
+    ↓
+Shadow Tree (TextInputShadowNode)
+    ↓
+Component Instance (TextInputComponentInstance)
+    ↓
+ArkUI Layer (TextInputNode/TextAreaNode)
+    ↓
+RNTextInput.ets (ArkTS 封装)
+    ↓
+最终渲染
+```
+
+### 核心类定义
+
+**TextInputNode**：
+```cpp
+class TextInputNode : public TextInputNodeBase {
+private:
+  uint32_t m_caretColorValue;
+  bool m_autofocus{false};
+  bool m_setTextContent{false};
+  std::string m_textContent;
+  TextInputNodeDelegate* m_textInputNodeDelegate;
+
+public:
+  void setTextContent(std::string const& textContent);
+  void setCaretHidden(bool hidden);
+  void setInputType(ArkUI_TextInputType keyboardType);
+  void setPlaceholder(std::string const& placeholder);
+};
+```
+
+**TextAreaNode**（多行输入）：
+```cpp
+class TextAreaNode : public TextInputNodeBase {
+public:
+  void setInputType(ArkUI_TextAreaType keyboardType);
+  void setshowSoftInputOnFocus(int32_t enable);
+};
+```
+
+### 属性处理
+
+**文本属性**：
+- `placeholder` - 占位符文本
+- `placeholderTextColor` - 占位符颜色
+- `maxLength` - 最大长度限制
+- `selectionColor` - 选中区域颜色
+- `cursorColor` - 光标颜色
+
+**输入行为属性**：
+- `keyboardType` - 键盘类型
+- `secureTextEntry` - 安全文本输入（密码模式）
+- `editable` - 可编辑性控制
+- `caretHidden` - 光标隐藏
+
+**键盘类型映射**：
+| React Native | ArkUI TextInput | ArkUI TextArea |
+|--------------|-----------------|----------------|
+| default | NORMAL | NORMAL |
+| email-address | EMAIL_ADDRESS | EMAIL |
+| numeric | NUMBER | NUMBER |
+| phone-pad | PHONE_NUMBER | PHONE_NUMBER |
+
+### 事件处理
+
+**事件类型**：
+```cpp
+enum class TextInputEventType {
+  Change,            // 文本变化
+  Focus,             // 获得焦点
+  Blur,              // 失去焦点
+  SelectionChange,   // 选择变化
+  Submit,            // 提交
+  ContentSizeChange  // 内容大小变化
+};
+```
+
+**onChange 事件**：
+```cpp
+void TextInputComponentInstance::onChange(std::string text) {
+  m_nativeEventCount++;
+  m_content = std::move(text);
+  m_eventEmitter->onChange(getOnChangeMetrics());
+  m_valueChanged = true;
+}
+```
+
+**onFocus/onBlur 事件**：
+```cpp
+void TextInputComponentInstance::onFocus() {
+  this->m_focused = true;
+  if (this->m_clearTextOnFocus) {
+    m_textAreaNode.setTextContent("");
+  }
+}
+
+void TextInputComponentInstance::onBlur() {
+  this->m_focused = false;
+  m_eventEmitter->onBlur(getTextInputMetrics());
+  m_eventEmitter->onEndEditing(getTextInputMetrics());
+}
+```
+
+### 键盘显示控制
+
+```cpp
+void TextInputNode::setshowSoftInputOnFocus(int32_t enable) {
+  ArkUI_NumberValue value = {.i32 = enable};
+  ArkUI_AttributeItem item = {&value, 1};
+  NativeNodeApi::getInstance()->setAttribute(
+      m_nodeHandle, NODE_TEXT_INPUT_SHOW_KEYBOARD_ON_FOCUS, &item);
+}
+```
+
+**键盘交互流程**：
+1. 聚焦触发 → 用户点击或 `focus()` 调用
+2. 键盘显示 → `showSoftInputOnFocus` 控制
+3. 输入处理 → `onChange` 回调
+4. 失去焦点 → `blur()` 调用
+5. 键盘隐藏 → 自动收起
+
+### 光标管理
+
+**光标显示/隐藏**：
+```cpp
+void TextInputNode::setCaretHidden(bool hidden) {
+  if (hidden) {
+    caretStyle = { width: 0 };
+  } else {
+    caretStyle = { width: 2 };  // 默认宽度
+  }
+}
+```
+
+**文本选择**：
+```cpp
+struct Selection {
+  int start{0};
+  int end{0};
+};
+
+void setTextSelection(int32_t start, int32_t end);
+```
+
+### 多行输入支持
+
+**模式切换**：
+```typescript
+if (this->descriptor.props.multiline) {
+  TextArea({ controller: this.areaController, ... })
+} else {
+  TextInput({ controller: this.inputController, ... })
+}
+```
+
+**TextArea 键盘类型**：
+```typescript
+TextAreaType getTextAreaType(keyboardType?: string) {
+  switch (keyboardType) {
+    case "numberPad":
+    case "numeric":
+      return TextAreaType.NUMBER;
+    case "emailAddress":
+      return TextAreaType.EMAIL;
+    default:
+      return TextAreaType.NORMAL;
+  }
+}
+```
+
+### 自动填充支持
+
+```cpp
+void TextInputNode::setAutoFill(bool autoFill) {
+  uint32_t isAutoFill = static_cast<uint32_t>(autoFill);
+  ArkUI_NumberValue value = {.u32 = isAutoFill};
+  NativeNodeApi::getInstance()->setAttribute(
+      m_nodeHandle, NODE_TEXT_INPUT_ENABLE_AUTO_FILL, &item);
+}
+```
+
+**支持的内容类型**：
+- 姓名、邮箱、电话
+- 密码、新密码
+- 街道、城市、邮政编码
+
+### TextInput 常见问题
+
+**问题 1**：onChange 事件重复触发
+- **原因**：程序化修改也触发事件
+- **解决**：使用 `m_setTextContent` 标志过滤
+
+**问题 2**：多行输入滚动问题
+- **原因**：TextArea 未正确配置滚动属性
+- **解决**：检查 `onContentScroll` 事件处理
+
+**问题 3**：键盘遮挡输入框
+- **原因**：未配置键盘避让
+- **解决**：使用 `KeyboardAvoidingView` 或 ScrollView 的 `keyboardShouldPersistTaps`
+
+---
+
+## FlatList 组件
+
+### FlatList 架构
+
+```
+React Native JS 层
+    ↓
+VirtualizedList (基类)
+    ↓
+FlatList (便捷封装)
+    ↓
+ScrollView 容器
+    ↓
+LazyForEach 虚拟化渲染
+    ↓
+CellRenderer (单项渲染)
+```
+
+### 核心类定义
+
+**VirtualizedList** - 虚拟化列表基类：
+```javascript
+class VirtualizedList extends StateSafePureComponent {
+  _scrollMetrics: {
+    contentLength: number,
+    offset: number,
+    visibleLength: number,
+    velocity: number,
+  };
+  _indicesToKeys: Map<number, string>;
+  _cellRefs: Object;
+
+  _adjustCellsAroundViewport(props, cellsAroundViewport);
+  _updateCellsToRenderBatcher: Batchinator;
+}
+```
+
+**FlatList** - 平铺列表：
+```javascript
+class FlatList extends VirtualizedList {
+  static defaultProps = {
+    data: [],
+    renderItem: null,
+    keyExtractor: (item, index) => item.key || item.id || String(index),
+  };
+}
+```
+
+### 虚拟化渲染机制
+
+**渲染窗口计算**：
+```javascript
+// VirtualizeUtils.js
+export function computeWindowedRenderLimits(
+  props, maxToRenderPerBatch, windowSize, prev, getFrameMetricsApprox, scrollMetrics
+) {
+  const visibleBegin = Math.max(0, offset);
+  const visibleEnd = visibleBegin + visibleLength;
+  const overscanLength = (windowSize - 1) * visibleLength;
+
+  // 计算预扫描区域
+  const overscanBegin = Math.max(0, visibleBegin - (1 - leadFactor) * overscanLength);
+  const overscanEnd = Math.max(0, visibleEnd + leadFactor * overscanLength);
+}
+```
+
+**渲染窗口调整**：
+```javascript
+_adjustCellsAroundViewport(props, cellsAroundViewport) {
+  const {contentLength, offset, visibleLength, velocity} = this._scrollMetrics;
+
+  // 根据滚动方向调整预加载
+  if (velocity > 1) {
+    fillPreference = 'after';   // 向下滚动
+  } else if (velocity < -1) {
+    fillPreference = 'before';  // 向上滚动
+  }
+}
+```
+
+### 渲染批处理优化
+
+```javascript
+// 批处理避免频繁布局更新
+this._updateCellsToRenderBatcher = new Batchinator(
+  this._updateCellsToRender,
+  this.props.updateCellsBatchingPeriod ?? 50,
+);
+```
+
+**批处理限制**：
+```javascript
+const maxToRenderPerBatchOrDefault = (maxToRenderPerBatch) => {
+  return maxToRenderPerBatch ?? 10;  // 默认每批渲染 10 个项目
+};
+```
+
+### onEndReached 触发机制
+
+**触发条件**：
+```javascript
+if (
+  onEndReached &&
+  this.state.cellsAroundViewport.last === getItemCount(data) - 1 &&
+  isWithinEndThreshold &&
+  this._scrollMetrics.contentLength !== this._sentEndForContentLength
+) {
+  this._sentEndForContentLength = this._scrollMetrics.contentLength;
+  onEndReached({distanceFromEnd});
+}
+```
+
+**阈值计算**：
+```javascript
+function getScrollingThreshold(threshold, visibleLength) {
+  return (threshold * visibleLength) / 2;
+}
+
+// 默认阈值为 2（两个可见高度的滚动距离）
+```
+
+### getItemLayout 优化
+
+**提供预定义布局信息**：
+```javascript
+getItemLayout: (data, index) => ({
+  length: ITEM_HEIGHT,           // 项目固定高度
+  offset: ITEM_HEIGHT * index,   // 累计偏移
+  index: index,
+})
+```
+
+**优化作用**：
+1. 避免运行时测量每个项目高度
+2. 支持精确的 `scrollToIndex` 定位
+3. 提升滚动性能
+
+### 键提取策略
+
+```javascript
+const defaultKeyExtractor = (item, index) => {
+  return item === null || item === undefined
+    ? `null-${index}`
+    : typeof item.key === 'string'
+      ? item.key
+      : item.id;
+};
+```
+
+### FlatList 最佳实践
+
+```javascript
+// 最佳实践示例
+const FlatListExample = () => {
+  const data = useMemo(() =>
+    Array.from({length: 1000}, (_, i) => ({id: i, text: `Item ${i}`})), []);
+
+  const renderItem = useCallback(({item}) => (
+    <View style={styles.item}>
+      <Text>{item.text}</Text>
+    </View>
+  ), []);
+
+  return (
+    <FlatList
+      data={data}
+      renderItem={renderItem}
+      keyExtractor={item => item.id.toString()}
+      getItemLayout={(data, index) => ({
+        length: 60,
+        offset: 60 * index,
+        index,
+      })}
+      initialNumToRender={10}
+      maxToRenderPerBatch={5}
+      windowSize={10}
+      onEndReached={handleLoadMore}
+      onEndReachedThreshold={0.5}
+    />
+  );
+};
+```
+
+---
+
+## Image 组件
+
+### Image 架构
+
+```
+React Native JS 层
+    ↓
+Props 解析 (ImagePropsParser)
+    ↓
+Shadow Tree (ImageShadowNode)
+    ↓
+Component Instance (ImageComponentInstance)
+    ↓
+RNImage.ets (ArkTS 封装)
+    ↓
+ImageLoaderTurboModule (网络加载)
+    ↓
+RemoteImageCache (三级缓存)
+    ↓
+最终渲染
+```
+
+### 核心类定义
+
+**ImageNode** - ArkUI 图片节点：
+```cpp
+class ImageNode : public ArkUINode {
+private:
+  ArkUI_NodeHandle m_childArkUINodeHandle;
+  ImageNodeDelegate* m_imageNodeDelegate;
+  std::string m_uri;
+
+public:
+  void setSources(ImageSource const& sources);
+  void setResizeMode(ImageResizeMode const& mode);
+  void setTintColor(SharedColor const& color);
+  void setBlur(double blur);
+};
+```
+
+**RNImage ArkTS 组件**：
+```typescript
+export struct RNImage {
+  ctx!: RNOHContext
+  tag: number = 0
+  @State private imageSource: ImageSourceHolder | undefined
+
+  async updateImageSource() {
+    const uri = this.descriptor.props.uri;
+
+    // 本地资源
+    if (uri.startsWith("asset://")) {
+      this.imageSource = new ImageSourceHolder($rawfile(uri.replace("asset://", "")));
+      return;
+    }
+
+    // Base64
+    if (uri.startsWith("data:")) {
+      this.imageSource = new ImageSourceHolder(uri);
+      return;
+    }
+
+    // 网络图片
+    const imageLoader = this.ctx.rnInstance.getTurboModule<ImageLoaderTurboModule>("ImageLoader");
+    const remoteImage = await imageLoader.getRemoteImageSource(uri);
+    this.imageSource = new ImageSourceHolder(remoteImage.getLocation());
+  }
+}
+```
+
+### 图片源类型支持
+
+| 类型 | 前缀 | 处理方式 |
+|------|------|----------|
+| 本地资源 | `asset://` | `$rawfile()` 加载 |
+| Base64 | `data:` | 直接创建 ImageSource |
+| 网络图片 | `http://`/`https://` | RemoteImageLoader 处理 |
+
+### 三级缓存架构
+
+**缓存查找顺序**：
+```
+内存缓存 (128个对象)
+    ↓ 未命中
+磁盘缓存 (128个文件)
+    ↓ 未命中
+网络下载
+```
+
+**内存缓存**：
+```typescript
+export class RemoteImageMemoryCache extends RemoteImageCache<RemoteImageSource> {
+  // 最大缓存数量：128
+  // 采用 LRU 策略
+}
+```
+
+**磁盘缓存**：
+```typescript
+export class RemoteImageDiskCache extends RemoteImageCache<boolean> {
+  // 缓存目录：ctx.uiAbilityContext.cacheDir
+  // 最大缓存数量：128
+}
+```
+
+### resizeMode 映射
+
+```typescript
+getResizeMode(resizeMode: number) {
+  switch (resizeMode) {
+    case 0: return ImageFit.Cover;      // cover - 等比填充，可能裁剪
+    case 1: return ImageFit.Contain;    // contain - 等比适应，可能留白
+    case 2: return ImageFit.Fill;       // stretch - 拉伸填充
+    case 3:
+    case 4: return ImageFit.None;       // center, repeat
+    default: return ImageFit.Cover;
+  }
+}
+```
+
+### 图片加载事件
+
+```typescript
+// RNImage.ets
+build() {
+  Image(this.imageSource.source)
+    .onComplete(event => {
+      this.onLoad(event)    // 加载完成
+      this.onLoadEnd()      // 加载结束
+    })
+    .onError((event) => {
+      this.dispatchOnError(event.message)
+      this.onLoadEnd()
+    })
+}
+
+onLoadStart() {
+  this.ctx.rnInstance.emitComponentEvent(this.descriptor.tag, "loadStart", null);
+}
+```
+
+### GIF 动画支持
+
+**动画检测**：
+```typescript
+async updateImageSource() {
+  const imageSource = remoteImage.getImageSource();
+  const frameCounter = await imageSource.getFrameCount();
+
+  if (frameCounter === 1) {
+    // 静态图片 → PixelMap（性能优化）
+    this.imageSource = new ImageSourceHolder(await imageLoader.getPixelMap(uri));
+  } else {
+    // GIF 动图 → 保持原格式
+    this.imageSource = new ImageSourceHolder(remoteImage.getLocation());
+  }
+}
+```
+
+**支持格式**：
+- 静态图片：JPEG, PNG, GIF (单帧), BMP, WEBP
+- 动画格式：GIF (多帧)
+
+### 图片加载优化
+
+**请求去重**：
+```typescript
+private activeRequestByUrl: Map<string, Promise<FetchResult>> = new Map();
+
+// 防止同一个 URL 的重复并发请求
+```
+
+**流式传输**：
+```typescript
+httpRequest.on('dataReceiveProgress', ({receiveSize, totalSize}) => {
+  onProgress?.(receiveSize / totalSize);
+});
+```
+
+---
+
+## Switch 组件
+
+### Switch 架构
+
+```
+React Native JS 层
+    ↓
+Props 解析 (SwitchPropsParser)
+    ↓
+Shadow Tree (SwitchShadowNode)
+    ↓
+Component Instance (SwitchComponentInstance)
+    ↓
+RNSwitch.ets (ArkTS 封装)
+    ↓
+Toggle (ArkUI 组件)
+```
+
+### 核心类定义
+
+**RNSwitch ArkTS 组件**：
+```typescript
+@Component
+export struct RNSwitch {
+  ctx!: RNOHContext
+  tag: number = 0
+  @State private descriptor: SwitchDescriptor = Object() as SwitchDescriptor
+
+  build() {
+    RNViewBase({ ctx: this.ctx, tag: this.tag }) {
+      Toggle({ type: ToggleType.Switch, isOn: this.descriptor.props.value })
+        .selectedColor(Color.Pink)      // 开启状态颜色
+        .switchPointColor(Color.Green)   // 滑块颜色
+        .onChange((isOn) => {
+          this.onChange(isOn)
+        })
+    }
+  }
+
+  onChange(isOn: boolean) {
+    this.ctx.rnInstance.emitComponentEvent(
+      this.descriptor.tag,
+      "onChange",
+      { value: isOn, target: this.descriptor.tag }
+    );
+  }
+}
+```
+
+**SwitchProps 属性**：
+```typescript
+export interface SwitchProps extends ViewBaseProps {
+  trackColor?: ColorSegments;   // 轨道颜色
+  thumbColor?: ColorSegments;    // 滑块颜色
+  value?: boolean;               // 开关值
+  disabled?: boolean;            // 是否禁用
+}
+```
+
+### C++ 层属性处理
+
+```cpp
+// SwitchComponentInstance.cpp
+void SwitchComponentInstance::onPropsChanged(SharedConcreteProps const& props) {
+  if (!m_props || props->onTintColor != m_props->onTintColor) {
+    getLocalRootArkUINode().setSelectedColor(props->onTintColor);
+  }
+  if (!m_props || props->tintColor != m_props->tintColor) {
+    getLocalRootArkUINode().setUnselectedColor(props->tintColor);
+  }
+  if (!m_props || props->thumbTintColor != m_props->thumbTintColor) {
+    getLocalRootArkUINode().setThumbColor(props->thumbTintColor);
+  }
+  getLocalRootArkUINode().setEnabled(!props->disabled);
+  if (props->value != m_toggleNode.getValue()) {
+    getLocalRootArkUINode().setValue(props->value);
+  }
+}
+```
+
+### 事件处理机制
+
+**防止事件循环**：
+```cpp
+void SwitchComponentInstance::onValueChange(int32_t& value) {
+  // 防止通过 props 更新时触发事件回传
+  if (m_props == nullptr || m_props->value == value) {
+    return;
+  }
+
+  if (m_eventEmitter != nullptr) {
+    auto onValueChange = facebook::react::SwitchEventEmitter::OnChange();
+    onValueChange.value = value;
+    onValueChange.target = getTag();
+    m_eventEmitter->onChange(onValueChange);
+  }
+
+  m_toggleNode.setValue(m_props->value);
+}
+```
+
+### ToggleNode 方法
+
+```cpp
+class ToggleNode : public ArkUINode {
+public:
+  ToggleNode& setSelectedColor(SharedColor const& color);
+  ToggleNode& setUnselectedColor(SharedColor const& color);
+  ToggleNode& setThumbColor(SharedColor const& color);
+  ToggleNode& setValue(bool value);
+  bool getValue();
+};
+```
+
+### 受控组件实现
+
+```typescript
+// React 层使用示例
+const ValuePropExample = () => {
+  const [value, setValue] = useState(false);
+
+  return (
+    <View>
+      <Switch value={value} onValueChange={setValue} />
+      <Button onPress={() => setValue(!value)} label="Toggle" />
+    </View>
+  );
+};
+```
+
+---
+
+## 其他表单组件
+
+### 组件角色映射
+
+```cpp
+const std::unordered_map<std::string, ArkUI_NodeType> NODE_TYPE_BY_ROLE_NAME = {
+    {"button", ARKUI_NODE_BUTTON},
+    {"checkbox", ARKUI_NODE_CHECKBOX},
+    {"switch", ARKUI_NODE_TOGGLE},
+    {"slider", ARKUI_NODE_SLIDER},
+    {"progressbar", ARKUI_NODE_PROGRESS},
+};
+```
+
+### ProgressBarAndroid
+
+```javascript
+export type ProgressBarAndroidProps = {
+  ...ViewProps,
+  styleAttr: 'Horizontal' | 'Normal' | 'Small' | 'Large',
+  indeterminate: boolean,
+  animating?: boolean,
+  color?: ColorValue,
+};
+```
+
+**特点**：
+- 支持水平、垂直和不同尺寸样式
+- 支持确定和不确定进度模式
+
+---
+
+## 核心架构深度解析
+
+### RNInstance 实例管理
+
+#### 核心接口定义
+
+```typescript
+export interface RNInstance {
+  // 核心组件系统
+  descriptorRegistry: DescriptorRegistry;
+  componentManagerRegistry: ComponentManagerRegistry;
+
+  // 事件系统
+  cppEventEmitter: EventEmitter<Record<string, unknown[]>>;
+  lifecycleEventEmitter: EventEmitter<LifecycleEventArgsByEventName>;
+
+  // 生命周期管理
+  getLifecycleState(): LifecycleState;
+  subscribeToLifecycleEvents<TEventName>(...): () => void;
+
+  // JS 通信
+  callRNFunction(moduleName: string, functionName: string, args: unknown[]): void;
+  emitComponentEvent(tag: Tag, eventName: string, payload: any): void;
+  emitDeviceEvent(eventName: string, payload: any): void;
+
+  // TurboModule 管理
+  getTurboModule<T>(name: string): T;
+  getUITurboModule<T extends UITurboModule>(name: string): T;
+
+  // Surface 管理
+  createSurface(appKey: string): SurfaceHandle;
+
+  // 资源管理
+  registerFont(fontFamily: string, fontResource: Resource | string): void;
+  getAssetsDest(): string;
+}
+```
+
+#### 生命周期状态
+
+```typescript
+export enum LifecycleState {
+  BEFORE_CREATE,  // 初始状态，尚未创建
+  PAUSED,        // 暂停状态
+  READY,         // 就绪状态，可以处理 UI 更新
+}
+```
+
+#### 生命周期流程
+
+**初始化阶段**：
+```typescript
+public async initialize(packages: RNPackage[]) {
+  // 1. 处理包，创建 TurboModule 提供者和描述符包装器工厂
+  const { descriptorWrapperFactoryByDescriptorType, turboModuleProvider } =
+    await this.processPackages(packages);
+
+  // 2. 创建描述符注册表
+  this.descriptorRegistry = new DescriptorRegistry({...});
+
+  // 3. 初始化 NapiBridge，连接到 C++ 层
+  this.napiBridge.onCreateRNInstance(this.envId, this.id, ...);
+}
+```
+
+**运行阶段**：
+```typescript
+public async runJSBundle(jsBundleProvider: JSBundleProvider) {
+  // 1. 设置执行状态
+  this.bundleExecutionStatusByBundleURL.set(bundleURL, "RUNNING");
+
+  // 2. 加载并执行 JS Bundle
+  const jsBundle = await jsBundleProvider.getBundle();
+  await this.napiBridge.loadScript(this.id, jsBundle, bundleURL);
+
+  // 3. 更新生命周期状态
+  this.lifecycleState = LifecycleState.READY;
+}
+```
+
+**销毁阶段**：
+```typescript
+public async onDestroy() {
+  // 1. 停止所有 Surface
+  for (const surfaceHandle of this.surfaceHandles) {
+    if (surfaceHandle.isRunning()) {
+      await surfaceHandle.stop();
+    }
+    surfaceHandle.destroy();
+  }
+
+  // 2. 清理 TurboModule
+  this.turboModuleProvider.onDestroy();
+
+  // 3. 通知 C++ 层清理
+  if (this.isFeatureFlagEnabled("ENABLE_RN_INSTANCE_CLEAN_UP")) {
+    this.napiBridge.onDestroyRNInstance(this.id);
+  }
+}
+```
+
+#### TurboModule 管理
+
+```typescript
+export class TurboModuleProvider<TTurboModule extends UITurboModule> {
+  private cachedTurboModuleByName: Record<string, TTurboModule> = {};
+
+  getModule<T extends TTurboModule>(name: string): T {
+    if (!(name in this.cachedTurboModuleByName)) {
+      for (const tmFactory of this.turboModulesFactories) {
+        if (tmFactory.hasTurboModule(name)) {
+          this.cachedTurboModuleByName[name] = tmFactory.createTurboModule(name);
+        }
+      }
+    }
+    return this.cachedTurboModuleByName[name] as T;
+  }
+}
+```
+
+#### 事件发射机制
+
+```typescript
+// 组件事件
+public emitComponentEvent(tag: Tag, eventName: string, payload: any) {
+  this.napiBridge.emitComponentEvent(this.id, tag, eventName, payload);
+}
+
+// 设备事件
+public emitDeviceEvent(eventName: string, payload: any) {
+  this.napiBridge.emitDeviceEvent(this.id, eventName, payload);
+}
+
+// 生命周期事件
+rnInstance.subscribeToLifecycleEvents("FOREGROUND", () => {
+  console.log("App came to foreground");
+});
+```
+
+---
+
+### CppComponentsRegistry 组件注册
+
+#### 组件绑定器架构
+
+```cpp
+class BaseComponentJSIBinder : public ComponentJSIBinder {
+public:
+  facebook::jsi::Object createBindings(facebook::jsi::Runtime& rt) override {
+    facebook::jsi::Object baseManagerConfig(rt);
+    baseManagerConfig.setProperty(rt, "NativeProps", this->createNativeProps(rt));
+    baseManagerConfig.setProperty(rt, "Constants", this->createConstants(rt));
+    baseManagerConfig.setProperty(rt, "Commands", this->createCommands(rt));
+    baseManagerConfig.setProperty(rt, "bubblingEventTypes", this->createBubblingEventTypes(rt));
+    baseManagerConfig.setProperty(rt, "directEventTypes", this->createDirectEventTypes(rt));
+    return baseManagerConfig;
+  }
+};
+```
+
+#### Props 解析机制
+
+```typescript
+export class ViewDescriptorWrapperBase extends DescriptorWrapper {
+  public get backgroundColor(): string | undefined {
+    return convertColorValueToHex(this.rawProps.backgroundColor);
+  }
+
+  public get borderWidth(): Edges<number | undefined> {
+    return this.resolveEdges({
+      all: this.rawProps.borderWidth,
+      top: this.rawProps.borderTopWidth,
+      // ... 更多边框属性
+    });
+  }
+}
+```
+
+#### DescriptorRegistry 核心
+
+```typescript
+export class DescriptorRegistry {
+  private descriptorByTag: Map<Tag, Descriptor> = new Map();
+  private descriptorWrapperByTag: Map<Tag, DescriptorWrapper> = new Map();
+  private descriptorTagById: Map<NativeId, Tag> = new Map();
+
+  // 应用变更（从 C++ 层同步）
+  public applyMutations(mutations: Mutation[]) {
+    const updatedDescriptorTags = new Set(mutations.flatMap(mutation => {
+      return this.applyMutation(mutation);
+    }));
+
+    if (!this.rnInstance.shouldUIBeUpdated()) {
+      updatedDescriptorTags.forEach(tag => this.updatedUnnotifiedTags.add(tag));
+      return;
+    }
+
+    this.callListeners(updatedDescriptorTags);
+  }
+
+  // 监听描述符变化
+  public subscribeToDescriptorChanges(tag: Tag, listener: DescriptorChangeListener) {
+    if (!this.descriptorListenersSetByTag.has(tag)) {
+      this.descriptorListenersSetByTag.set(tag, new Set());
+    }
+    this.descriptorListenersSetByTag.get(tag)!.add(listener);
+    return () => this.removeDescriptorChangesListener(tag, listener);
+  }
+}
+```
+
+#### ComponentManager 生命周期
+
+```typescript
+export abstract class ComponentManager {
+  onDestroy() {}
+  abstract getParentTag(): Tag
+  abstract getTag(): Tag
+}
+
+export class RNViewManager extends ComponentManager {
+  protected tag: Tag;
+  protected descriptorRegistry: DescriptorRegistry;
+  protected componentManagerRegistry: ComponentManagerRegistry;
+  protected parentTag: Tag;
+
+  constructor(tag: Tag, ctx: RNOHContext) {
+    super();
+    this.descriptorRegistry = ctx.descriptorRegistry;
+    this.componentManagerRegistry = ctx.componentManagerRegistry;
+    this.parentTag = this.descriptorRegistry.getDescriptor(tag)?.parentTag!;
+  }
+
+  public isPointInView({x, y}: Point): boolean {
+    const descriptorWrapper = this.getDescriptorWrapper()!;
+    const width = descriptorWrapper.width;
+    const height = descriptorWrapper.height;
+    const hitSlop = this.getHitSlop();
+    // ... 点击检测逻辑
+  }
+}
+```
+
+#### 组件命令处理
+
+```typescript
+export class RNComponentCommandHub {
+  private commandHandlersByTag = new Map<Tag, Map<string, CommandHandler>>();
+
+  public dispatchCommand(tag: Tag, commandName: string, args: unknown) {
+    const handler = this.findCommandHandler(tag, commandName);
+    if (handler) {
+      handler(args);
+    }
+  }
+}
+```
+
+---
+
+### MountingManager 挂载管理器
+
+#### 核心职责
+
+MountingManager 负责：
+1. 组件实例生命周期管理（创建、更新、销毁）
+2. UI 变异处理（ShadowViewMutation）
+3. 多架构协调（C-API 和 ArkTS）
+4. 挂载流程控制
+5. 事件和命令分发
+
+#### 双架构设计
+
+```cpp
+// 基类接口
+class MountingManager {
+protected:
+  using Mutation = facebook::react::ShadowViewMutation;
+  using MutationList = facebook::react::ShadowViewMutationList;
+
+public:
+  virtual void willMount(MutationList const& mutations) = 0;
+  virtual void doMount(MutationList const& mutations) = 0;
+  virtual void didMount(MutationList const& mutations) = 0;
+  virtual void finalizeMutationUpdates(MutationList const& mutations) = 0;
+};
+
+// ArkTS 架构实现
+class MountingManagerArkTS final : public MountingManager {
+  // 负责 ArkTS 视图树的挂载管理
+};
+
+// C-API 架构实现
+class MountingManagerCAPI final : public MountingManager {
+  // 负责 C-API 组件的挂载管理
+};
+```
+
+#### 挂载流程三阶段
+
+1. **willMount** - 准备工作，检查变异有效性
+2. **doMount** - 执行实际挂载操作
+3. **didMount** - 完成挂载，触发回调
+
+#### 变异指令处理
+
+```cpp
+void MountingManagerArkTS::doMount(MutationList const& mutations) {
+  for (auto& mutation : mutations) {
+    switch (mutation.type) {
+      case react::ShadowViewMutation::Create: {
+        auto newChild = mutation.newChildShadowView;
+        shadowViewRegistry->setShadowView(newChild.tag, newChild);
+        break;
+      }
+      case react::ShadowViewMutation::Delete: {
+        auto oldChild = mutation.oldChildShadowView;
+        shadowViewRegistry->clearShadowView(oldChild.tag);
+        break;
+      }
+      // ... 其他变异类型
+    }
+  }
+}
+```
+
+#### ShadowTree 提交机制
+
+```cpp
+enum class CommitStatus { Succeeded, Failed, Cancelled };
+enum class CommitMode { Normal, Suspended };
+
+struct CommitOptions {
+  bool enableStateReconciliation{false};
+  bool mountSynchronously{true};
+  std::function<bool()> shouldYield;
+};
+
+CommitStatus commit(
+  const ShadowTreeCommitTransaction &transaction,
+  const CommitOptions &commitOptions) const;
+```
+
+#### Surface 管理
+
+```cpp
+class SurfaceHandler {
+public:
+  enum class Status { Unregistered, Registered, Running };
+
+  void start() const noexcept;
+  void stop() const noexcept;
+  void constraintLayout(
+    LayoutConstraints const &layoutConstraints,
+    LayoutContext const &layoutContext) const noexcept;
+};
+```
+
+#### 布局约束应用
+
+```cpp
+struct LayoutConstraints {
+  Size minimumSize{0, 0};
+  Size maximumSize{
+    std::numeric_limits<Float>::infinity(),
+    std::numeric_limits<Float>::infinity()
+  };
+  LayoutDirection layoutDirection{LayoutDirection::Undefined};
+
+  Size clamp(const Size &size) const;
+};
+```
+
+#### 双架构协调机制
+
+```cpp
+class MountingManagerCAPI final : public MountingManager {
+private:
+  MountingManager::Shared m_arkTsMountingManager;
+  std::unordered_set<std::string> m_arkTsComponentNames;
+  std::unordered_set<std::string> m_cApiComponentNames;
+
+public:
+  void doMount(MutationList const& mutations) override {
+    // 先处理 ArkTS 组件
+    m_arkTsMountingManager->doMount(getValidMutations(mutations));
+
+    // 再处理 C-API 组件
+    for (auto const& mutation : mutations) {
+      handleMutation(mutation);
+    }
+  }
+
+  bool isCAPIComponent(facebook::react::ShadowView const& shadowView) {
+    std::string componentName = shadowView.componentName;
+    if (m_cApiComponentNames.count(componentName) > 0) {
+      return true;
+    }
+    if (m_arkTsComponentNames.count(componentName) > 0) {
+      return false;
+    }
+    // 动态判断并缓存
+    // ...
+  }
+};
+```
+
+#### Scheduler 集成
+
+```cpp
+class Scheduler final : public UIManagerDelegate {
+public:
+  void registerSurface(SurfaceHandler const &surfaceHandler) const noexcept;
+  void animationTick() const;
+  void uiManagerDidFinishTransaction(
+    MountingCoordinator::Shared mountingCoordinator,
+    bool mountSynchronously) override;
+};
+```
+
+---
+
+## 调试工具和开发技巧
+
+### 测试框架
+
+**Jest 配置**：
+```javascript
+// jest.config.js
+module.exports = {
+  preset: 'react-native',
+  moduleFileExtensions: ['ts', 'tsx', 'js'],
+  transform: {
+    '^.+\\.(js|jsx|ts|tsx)$': 'ts-jest',
+  },
+};
+```
+
+**测试命令**：
+```bash
+# 运行所有测试
+npm run test
+
+# 性能测试
+npm run benchmark-fps
+```
+
+### 调试工具
+
+**Systrace 性能追踪**：
+```javascript
+import { Systrace } from 'react-native';
+
+// 同步追踪
+Systrace.beginEvent('Test trace');
+// 执行代码...
+Systrace.endEvent();
+
+// 异步追踪
+const traceCookie = Systrace.beginAsyncEvent('Test async trace');
+// 执行代码...
+Systrace.endAsyncEvent('Test async trace', traceCookie);
+
+// 计数器事件
+Systrace.counterEvent('MY_SUPER_VARIABLE', 123);
+```
+
+**性能日志系统**：
+```javascript
+import createPerformanceLogger from 'react-native/Libraries/Utilities/createPerformanceLogger';
+
+const perfLogger = createPerformanceLogger();
+
+// 记录时间跨度
+perfLogger.startTimespan('operationName');
+// 执行操作...
+perfLogger.stopTimespan('operationName');
+
+// 记录检查点
+perfLogger.markPoint('checkpoint1');
+```
+
+**HiTrace 追踪**：
+```typescript
+// ArkTS 端追踪
+import hiTrace from '@ohos.hiTraceMeter';
+hiTrace.startTrace(`myTrace`, 0);
+// 执行代码...
+hiTrace.finishTrace(`myTrace`, 0);
+```
+
+### 热重载配置
+
+**Metro 配置**：
+```javascript
+const { mergeConfig, getDefaultConfig } = require('@react-native/metro-config');
+const { createHarmonyMetroConfig } = require('react-native-harmony/metro.config');
+
+const config = {
+  transformer: {
+    getTransformOptions: async () => ({
+      transform: {
+        experimentalImportSupport: false,
+        inlineRequires: true,
+      },
+    }),
+  },
+};
+
+module.exports = mergeConfig(
+  getDefaultConfig(__dirname),
+  createHarmonyMetroConfig({
+    reactNativeHarmonyPackageName: 'react-native-harmony',
+  }),
+  config
+);
+```
+
+**LAN 热重载**：
+```typescript
+RNApp({
+  jsBundleProvider: new TraceJSBundleProviderDecorator(
+    new AnyJSBundleProvider([
+      MetroJSBundleProvider.fromServerIp('192.168.43.14', 8081),
+    ]),
+    this.rnohCoreContext.logger),
+})
+```
+
+### 开发工作流
+
+**常用命令**：
+```bash
+# 启动 Metro 服务器
+npm run start
+
+# 端口转发（连接设备）
+hdc rport tcp:8081 tcp:8081
+
+# 代码格式化
+npm run format
+
+# 代码检查
+npm run lint:js
+
+# 类型检查
+npm run typecheck
+```
+
+### 错误处理
+
+**LogBox 集成**：
+```typescript
+// LogBox 事件处理
+this.rnInstance.getTurboModule<LogBoxTurboModule>(LogBoxTurboModule.NAME)
+  .eventEmitter.subscribe("SHOW", () => {
+    this.logBoxDialogController.open();
+  });
+```
+
+**DevEco Studio 日志**：
+```bash
+# 在 DevEco Studio 中查看 JS 错误
+# 1. 连接设备
+# 2. 打开 Log 标签页
+# 3. 选择 HiLog
+# 4. 设置过滤条件：应用包名、Error/Warn
+```
+
+---
+
+## 性能优化最佳实践
+
+### 列表渲染优化
+
+**FlatList 优化配置**：
+```typescript
+<FlatList
+  removeClippedSubviews={true}
+  data={DATA}
+  renderItem={renderItem}
+  keyExtractor={item => item.id}
+  initialNumToRender={10}      // 初始渲染10项
+  maxToRenderPerBatch={20}      // 每批渲染最多20项
+  windowSize={10}               // 渲染窗口大小
+  getItemLayout={(data, index) => ({
+    length: 100,
+    offset: 100 * index,
+    index
+  })}
+/>
+```
+
+**SectionList 粘性头部**：
+```typescript
+<SectionList
+  sections={DATA}
+  stickySectionHeadersEnabled={true}
+  removeClippedSubviews={true}
+/>
+```
+
+### 图片加载优化
+
+**三级缓存策略**：
+```
+内存缓存 → 磁盘缓存 → 网络下载
+```
+
+**图片预加载**：
+```typescript
+// 预加载单个图片
+Image.prefetch('https://example.com/image.jpg');
+
+// 批量查询缓存
+await Image.queryCache([
+  'https://example.com/image1.jpg',
+  'https://example.com/image2.jpg'
+]);
+```
+
+### 内存管理
+
+**缓存控制**：
+```typescript
+// 限制缓存大小
+const MAX_CACHE_SIZE = 128;
+
+// LRU 缓存策略
+set(key: string, value: T): void {
+  this.data.set(key, value);
+
+  // 检查是否超过最大尺寸
+  if (this.data.size > this.maxSize) {
+    const oldestKey = this.data.keys()[0];
+    this.remove(oldestKey);
+  }
+}
+```
+
+**内存泄漏防护**：
+```typescript
+// 组件卸载时清理
+useEffect(() => {
+  const id = translateXYalue.addListener(() => {
+    setNum(n => n + 1);
+  });
+
+  return () => {
+    translateXYalue.removeListener(id);
+    onPress.stop();  // 停止动画
+  };
+}, []);
+```
+
+### 布局优化
+
+**避免过度嵌套**：
+```typescript
+// 优化前 - 过度嵌套
+<View>
+  <View>
+    <View>
+      <Text>内容</Text>
+    </View>
+  </View>
+</View>
+
+// 优化后 - 扁平结构
+<View>
+  <Text>内容</Text>
+</View>
+```
+
+**静态样式优化**：
+```typescript
+// 避免：在渲染函数中创建样式
+const Component = () => {
+  const styles = StyleSheet.create({
+    container: { width: '100%' }
+  });
+}
+
+// 推荐：使用静态样式
+const staticStyles = StyleSheet.create({
+  container: { width: '100%' }
+});
+```
+
+### 动画优化
+
+**原生驱动动画**：
+```typescript
+const onPress = useRef(
+  Animated.loop(
+    Animated.timing(translateXYalue, {
+      toValue: {x: 100, y: 100},
+      useNativeDriver: true,  // 使用原生驱动
+    }),
+  ),
+).current;
+```
+
+**动画优化技巧**：
+```typescript
+// 使用 useMemo 避免重复创建动画
+const animation = useMemo(() => {
+  const expand = Animated.timing(animWidth, {
+    toValue: 300,
+    duration: 1000,
+    useNativeDriver: false,
+  });
+  const contract = Animated.timing(animWidth, {
+    toValue: 100,
+    duration: 1000,
+    useNativeDriver: false,
+  });
+  return Animated.sequence([expand, contract]);
+}, []);
+```
+
+### 网络优化
+
+**请求去重**：
+```typescript
+// 检查是否已有相同请求正在进行
+if (this.activeRequestByUrl.has(url)) {
+  return this.activeRequestByUrl.get(url);
+}
+```
+
+**预加载优化**：
+```typescript
+// 检查是否已缓存
+if (this.diskCache.has(uri)) {
+  return true;  // 已缓存，无需重复下载
+}
+```
+
+### 渲染优化
+
+**React.memo 避免重渲染**：
+```typescript
+const Item = memo(function Item({title}: ItemProps) {
+  return (
+    <View>
+      <Text>{title}</Text>
+    </View>
+  );
+});
+```
+
+**useCallback 和 useMemo**：
+```typescript
+const FlatListTest = () => {
+  const renderItem = useCallback(({item}) => <Item title={item.title} />, []);
+  const keyExtractor = useCallback(item => item.id, []);
+
+  return (
+    <FlatList
+      data={DATA}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+    />
+  );
+};
+```
+
+### 性能监控
+
+**Systrace 集成**：
+```typescript
+export function SystraceTest() {
+  return (
+    <TestSuite name="Systrace">
+      <TestCase.Example itShould="Performance tracing">
+        <Button
+          label="Start Systrace"
+          onPress={() => Systrace.beginEvent('Test trace')}
+        />
+        <Button
+          label="Stop Systrace"
+          onPress={() => Systrace.endEvent()}
+        />
+      </TestCase.Example>
+    </TestSuite>
+  );
+}
+```
+
+**性能测量**：
+```typescript
+// MeasureComponent.tsx
+useEffect(() => {
+  setTimeout(() => {
+    const took = (drawnTss[1] - startTime).toFixed(3);
+    Alert.alert(title, `${took} ms`, [{text: 'OK'}]);
+  }, 1500);
+}, [title, startTime]);
+```
+
+### 性能优化策略总结
+
+| 优化类别 | 具体策略 |
+|---------|----------|
+| 渲染优化 | 虚拟化列表、React.memo、useMemo、useCallback |
+| 内存优化 | 多层缓存、限制缓存大小、及时清理资源 |
+| 网络优化 | 请求去重、图片预加载、缓存策略 |
+| 动画优化 | useNativeDriver、避免频繁状态更新 |
+| 布局优化 | 减少视图层级、Flexbox 布局、静态样式 |
+| 性能监控 | Systrace、性能测量组件、实时监控 |
 
 ---
 
